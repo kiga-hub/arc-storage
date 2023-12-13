@@ -1,0 +1,17 @@
+*.DS_Store
+DS_Store
+.vscode
+.VSCodeCounter
+*/node_modules
+node_modules/
+logs/
+*.db
+s3f_*
+*.test
+*.out
+build/
+bin
+temp
+.idea
+
+arc-storage

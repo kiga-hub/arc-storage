@@ -1,0 +1,66 @@
+[basic]
+apiBodyLimit = "10M"
+apiBurst = 10
+apiExpires = 10
+apiPort = 80
+apiRate = 5
+apiRoot = "/api/data/v1/history"
+apiTimeout = 2000
+inSwarm = true
+isApiBody = false
+isApiRate = false
+isApiTimeout = false
+prof = false
+service = "arc-storage"
+zone = "default"
+
+[arc]
+allowAutomaticallySaveFile = true
+arcVolumeQueueLen = 2048
+arcVolumeQueueNum = 2
+arcVolumeQueueReadTimeoutSeconds = 10
+chanCapacity = 1024
+dataPath = "/home/arc-storage/data"
+debugMod = 0
+frameOffset = 5
+saveDuration = "hour"
+saveNum = 12
+saveType = 0
+timeout = 300
+workCount = 16
+
+[kafka]
+bootstrapServeres = "localhost:9092"
+enable = false
+groupID = "business"
+interval = 2
+messageMaxBytes = 67108864
+topic = "app.jinzhou.result"
+
+[taos]
+enable = true
+host = "arc-storage-data-taos"
+interval = 2
+tag = "arc"
+
+[grpc]
+enable = true
+server = ":8080"
+
+[cache]
+enable = true
+expirems = 120000
+search = true
+timeoutmin = 2
+
+[pprof]
+enable = false
+
+[log]
+level = "INFO"
+path = ""
+#loki = "loki:9096"
+
+[trace]
+jaegerCollector = "http://tempo:14268"
+tempoQuery = "tempo:9095"
