@@ -103,16 +103,6 @@ func CaseIsGzippable(t *testing.T) {
 			mtype:    "application/test.script",
 			wantbool: true,
 		},
-		{
-			ext:      "",
-			mtype:    "audio/wav",
-			wantbool: true,
-		},
-		{
-			ext:      "",
-			mtype:    "audio/nil",
-			wantbool: true,
-		},
 	}
 	data := []byte{0x00, 0x01}
 	for _, tt := range tests {

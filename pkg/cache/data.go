@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-// DataCacheRepo 音频实时缓存
+// DataCacheRepo DataCacheRepo
 type DataCacheRepo struct {
 	Container *cache.DataCacheContainer
 }
@@ -25,7 +25,7 @@ func NewCacheRepo(logger logging.ILogger) *DataCacheRepo {
 			config.GetCacheConfig().Search,
 			logger),
 	}
-	logger.Infow("start audio cache service...")
+	logger.Infow("start arc cache service...")
 	d.Container.Start(config.GetConfig().Basic.IsDevMode)
 
 	return d
@@ -53,7 +53,7 @@ func (d *DataCacheRepo) Input(data *cache.DataPoint) {
 // Search -
 func (d *DataCacheRepo) Search(logger logging.ILogger, id uint64, from, to time.Time, frameOffset int) ([]byte, int, error) {
 
-	sampleRate := float64(8000) // 音频最低采样率
+	sampleRate := float64(8000) 
 	channel := 1
 	// 两帧时间差,单位ms
 	gap := (float64(frameOffset) / sampleRate) * 1e6
@@ -123,7 +123,7 @@ func (d *DataCacheRepo) Search(logger logging.ILogger, id uint64, from, to time.
 		wavData = data.Data
 	}
 
-	logger.Infow("searchAudio", "from", from, "previousTimestamp", previousTimestamp, "to", to, "nextTimestamp", nextTimestamp,
+	logger.Infow("searchArc", "from", from, "previousTimestamp", previousTimestamp, "to", to, "nextTimestamp", nextTimestamp,
 		"expectSize", expectSize, "wavDataLen", len(wavData), "sub", sub, "data.Data", len(data.Data))
 
 	return wavData, 1, err

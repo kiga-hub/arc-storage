@@ -30,7 +30,7 @@ type FileReadMetric interface {
 	Register() error    // 注册
 }
 
-// ConsumingTimeMetric 音频存储耗时度量指标
+// ConsumingTimeMetric 储耗时度量指标
 type ConsumingTimeMetric interface {
 	Set(val float64, args ...string) // 设置给定值
 	Register() error                 // 注册

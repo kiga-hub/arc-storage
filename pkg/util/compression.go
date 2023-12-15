@@ -172,8 +172,8 @@ func IsGzippableFileType(ext, mtype string) (shouldBeZipped, iAmSure bool) {
 
 	}
 
-	if strings.HasPrefix(mtype, "audio/") {
-		switch strings.TrimPrefix(mtype, "audio/") {
+	if strings.HasPrefix(mtype, "arc/") {
+		switch strings.TrimPrefix(mtype, "arc/") {
 		case "wave", "wav", "x-wav", "x-pn-wav":
 			return true, true
 		}

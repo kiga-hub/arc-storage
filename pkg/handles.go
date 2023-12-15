@@ -34,7 +34,7 @@ const (
 	// ArcStorageAPI Arc Storage Data API
 	ArcStorageAPI = "Arc Storage Data"
 	// TDEngineAPI tdengine api
-	TDEngineAPI = "Temperature etc."
+	TDEngineAPI = "Arc etc."
 	// DataBaseName arc
 	DataBaseName = "arc"
 )
@@ -43,8 +43,8 @@ const (
 var ArcStorageVersion = "appversion"
 
 const (
-	// TypeTemperature "T"
-	TypeTemperature = "T"
+	// TypeArc "Arc"
+	TypeArc = "Arc"
 )
 
 // RecordTimeRangeParam -
@@ -71,8 +71,8 @@ type ArcStorage struct {
 	timeoutChans      []chan uint64
 	kafka             kafka.Handler
 	grpcserver        *grpc.Server
-	audioFileStore    *arc_volume.ArcVolumeCache // 音频读写文件系统
-	audioCache        *cache.DataCacheRepo       // 查询实时Audio数据的缓存
+	arcFileStore      *arc_volume.ArcVolumeCache
+	arcCache          *cache.DataCacheRepo
 	config            *config.ArcConfig
 	sensorIDsChan     chan []string
 	decodeJobChans    []chan []byte
@@ -90,7 +90,7 @@ func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCac
 		return nil, err
 	}
 
-	audioFileStore, err := arc_volume.NewArcVolumeCache(logger, config, arc_volume.DataTypeMap[TypeTemperature])
+	arcFileStore, err := arc_volume.NewArcVolumeCache(logger, config, arc_volume.DataTypeMap[TypeArc])
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCac
 		decodeJobChans:    make([]chan []byte, config.Work.WorkCount),
 		decodeResultChans: make([]chan decodeResult, config.Work.WorkCount),
 		timeoutChans:      make([]chan uint64, config.Work.WorkCount),
-		audioFileStore:    audioFileStore,
+		arcFileStore:      arcFileStore,
 		grpcmessage:       make(chan protostream.ProtoStream, 1024),
 		isConnectTaos:     false,
 		exportMetrics:     m,
@@ -133,7 +133,7 @@ func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCac
 	// cache enable
 	if db.config.Cache.Enable {
 		// 实时查询
-		db.audioCache = cache.NewCacheRepo(logger)
+		db.arcCache = cache.NewCacheRepo(logger)
 	}
 
 	if db.config.Kafka.Enable {
@@ -280,11 +280,11 @@ func (arc *ArcStorage) Close() {
 	// 等待所有数据落盘
 	time.Sleep(time.Second * 20)
 	arc.logger.Info("Quit!")
-	arc.audioFileStore.SafeClose()
+	arc.arcFileStore.SafeClose()
 
-	// audio cache stop
-	if arc.audioCache != nil {
-		arc.audioCache.Close()
+	// arc cache stop
+	if arc.arcCache != nil {
+		arc.arcCache.Close()
 	}
 }
 
@@ -315,40 +315,35 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 					continue
 				}
 
-				var temperature *protocols.SegmentTemperature
+				var argSegment *protocols.SegmentArc
 				var err error
-				if temperature, err = datagroup.GetTSegment(); err != nil {
-					arc.logger.Debugw("temperature", "id", item.idString, "err", err)
+				if argSegment, err = datagroup.GetArcSegment(); err != nil {
+					arc.logger.Debugw("arc", "id", item.idString, "err", err)
 				}
 
-				audiodata := make([]byte, len(temperature.Bytes))
-				copy(audiodata, temperature.Bytes)
+				arcData := make([]byte, len(argSegment.Data))
+				copy(arcData, argSegment.Data)
 
 				if arc.config.Cache.Enable {
-					// 音频缓存
 					dataPoint := &dataCache.DataPoint{
 						ID:   item.idUint64,
 						Time: item.timestamp, //us
-						Data: temperature.Bytes,
+						Data: argSegment.Data,
 					}
 					// 实时数据缓存
-					arc.audioCache.Input(dataPoint)
+					arc.arcCache.Input(dataPoint)
 				}
 
 				var afi *arc_volume.ArcVolume
 
-				firstHalfSize := 0
 				secondHalfSize := 0
-				isRateChanged := false
-				isStopMinChanged := false
 
-				a, isAfiExist := arc.audioFileStore.DataCache.Load(item.idUint64)
+				a, isAfiExist := arc.arcFileStore.DataCache.Load(item.idUint64)
 				// 首次存fileCache，不存在则新建
 				if !isAfiExist {
 					buffer := bytes.NewBuffer([]byte{})
-					buffer.Grow(len(temperature.Bytes) * 2)
-					// 写入音频buffer
-					buffer.Write(audiodata)
+					buffer.Grow(len(argSegment.Data) * 2)
+					buffer.Write(arcData)
 					afi = &arc_volume.ArcVolume{
 						Dir:        arc.config.Work.DataPath,
 						CreateTime: item.timestamp,
@@ -356,18 +351,10 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 						SensorID:   item.idString,
 						Buffer:     buffer,
 						Version:    ArcStorageVersion,
-						Type:       TypeTemperature,
+						Type:       TypeArc,
 					}
 
-					if item.isEnd {
-						// 收到得第一个包为强制落盘,写入文件存储
-						if err := arc.audioFileStore.PreWriteToFileCache(afi, item.timestamp, secondHalfSize); err != nil {
-							arc.logger.Errorw("storeToAduioBigFile", "err", err)
-						}
-						afi = nil
-					} else {
-						arc.audioFileStore.DataCache.Store(item.idUint64, afi)
-					}
+					arc.arcFileStore.DataCache.Store(item.idUint64, afi)
 
 					isAfiExist = false
 				}
@@ -378,67 +365,29 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 					if item.timestamp.Before(afi.LastTimestamp) {
 						arc.exportMetrics.SetOutOfOrderLabelValues(item.idString)
 						arc.logger.Errorw("timestampOutOfOrder", "sensorID", item.idString, "lastTimestamp", afi.LastTimestamp,
-							"itemTimeStamp", item.timestamp, "isInterrupt", item.isInterrupt)
+							"itemTimeStamp", item.timestamp)
 					}
-					// 判断包号是否连续或者中断结束
-					if item.isInterrupt || item.isEnd {
-						arc.exportMetrics.SetInterruptLabelValues(item.idString)
-						arc.logger.Debugw("packageIsInterrupt", "id", item.idString, "time", item.timestamp, "isInterrupt", item.isInterrupt, "isEnd", item.isEnd)
-					}
-
-					// 采样率不变 & 包号连续 | 强制落盘,解析数据写入buffer
-					if (!isRateChanged && !item.isInterrupt) || item.isEnd {
-						afi.Buffer.Write(audiodata)
-					}
-
-					// 每分钟落盘，buffer写入文件
-					// 数据包不连续，且接收到的为第一个包则不进行落盘操作
-					if (afi.Buffer.Len() > 0 && item.isInterrupt) || isRateChanged || isStopMinChanged || item.isEnd {
-						arc.logger.Infow("saveAudioDataToFile", "sensorID", item.idString, "itemTimestamp", item.timestamp,
-							"FileCreateTime", afi.CreateTime, "FileSaveTime", afi.SaveTime.UTC(),
-							"isInterrupt", item.isInterrupt, "sampleRateChanged", isRateChanged, "isStopMinChanged", isStopMinChanged, "isEnd", item.isEnd,
-							"dataSize", len(audiodata), "afiSize", afi.Buffer.Len(), "sampleRate", afi.SampleRate)
-
-						if item.timestamp.Before(afi.SaveTime) {
-							arc.logger.Debugw(
-								"storeDataTimestampError", "sensorID", item.idString, "timeStamp", item.timestamp,
-								"createTime", afi.CreateTime, "saveTime", afi.SaveTime.UTC(),
-							)
-						}
-
-						// 存储音频数据到文件系统
-						if err := arc.audioFileStore.PreWriteToFileCache(afi, item.timestamp, secondHalfSize); err != nil {
-							arc.logger.Errorw("storeToAduioBigFile", "err", err)
-						}
-						arc.logger.Debugw("PreWriteToFileCache", "id", item.idString, "timeStamp", item.timestamp, "size", afi.Buffer.Len(), "startTime", afi.CreateTime)
-
-						// add idstirng to gossipKVCache
-						if arc.gossipKVCache != nil {
-							arc.sensorIDsChan <- []string{item.idString}
-						}
-
-						afi.Update(afi.CreateTime)
-					}
-
 					afi.SaveTime = item.timestamp.UTC() //item.timestamp.UTC()
 					afi.LastTimestamp = item.timestamp
-					afi.Buffer.Write(audiodata)
+					afi.Buffer.Write(arcData)
 
-					// 包号不连续，采样率变化，保存数据到下一个缓存中
-					if item.isInterrupt || isRateChanged {
-						afi.Buffer.Write(audiodata)
-						afi.CreateTime = item.timestamp.UTC()
-					} else if secondHalfSize > 0 {
-						arc.logger.Infow("secondHalfSize", "sensorID", item.idString, "firstHalfSizeSize", firstHalfSize, "secondHalfSizeSize", secondHalfSize, "afiCreateTime", afi.CreateTime.UTC(), "afiSaveTime", afi.SaveTime.UTC())
-						afi.Buffer.Write(audiodata[firstHalfSize:])
+					if err := arc.arcFileStore.PreWriteToFileCache(afi, item.timestamp, secondHalfSize); err != nil {
+						arc.logger.Errorw("storeToArcBigFile", "err", err)
+					}
+					arc.logger.Debugw("PreWriteToFileCache", "id", item.idString, "timeStamp", item.timestamp, "size", afi.Buffer.Len(), "startTime", afi.CreateTime)
+
+					// add idstirng to gossipKVCache
+					if arc.gossipKVCache != nil {
+						arc.sensorIDsChan <- []string{item.idString}
 					}
 
-					if item.isEnd {
-						arc.audioFileStore.DataCache.Delete(item.idUint64)
-					} else {
-						// 存储当前时间，用于超时处理
-						arc.timeoutSyncMap.Store(item.idUint64, time.Now().UTC())
-					}
+					afi.Update(afi.CreateTime)
+
+					afi.Buffer.Write(arcData)
+
+					// 存储当前时间，用于超时处理
+					arc.timeoutSyncMap.Store(item.idUint64, time.Now().UTC())
+
 				}
 			}
 		}
@@ -473,7 +422,7 @@ func (arc *ArcStorage) gRPCServerStream(sigchan chan os.Signal, message chan pro
 
 // loadAndStoreTimeOutData -
 func (arc *ArcStorage) loadAndStoreTimeOutData(sensorid uint64) {
-	a, isAfiExist := arc.audioFileStore.DataCache.Load(sensorid)
+	a, isAfiExist := arc.arcFileStore.DataCache.Load(sensorid)
 	if !isAfiExist {
 		return
 	}
@@ -486,11 +435,11 @@ func (arc *ArcStorage) loadAndStoreTimeOutData(sensorid uint64) {
 	}
 
 	arc.logger.Warnw("loadAndStoreTimeOutData", "id", afi.SensorID, "len", afi.Buffer.Len(), "afi.CreateTime", afi.CreateTime)
-	if err := arc.audioFileStore.PreWriteToFileCache(afi, afi.SaveTime, 0); err != nil {
+	if err := arc.arcFileStore.PreWriteToFileCache(afi, afi.SaveTime, 0); err != nil {
 		arc.logger.Errorw("storeToAduioBigFile", "err", err)
 		return
 	}
-	arc.audioFileStore.DataCache.Delete(sensorid)
+	arc.arcFileStore.DataCache.Delete(sensorid)
 	// delete timeout map elem
 	arc.timeoutSyncMap.Delete(sensorid)
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/kiga-hub/arc-storage/pkg/util"
 )
 
-// Test_isFirstCreateFile 单元测试-判断是否创建文件
+// Test_isFirstCreateFile Test_isFirstCreateFile
 func Test_isFirstCreateFile(t *testing.T) {
 	tests := []struct {
 		testName      string

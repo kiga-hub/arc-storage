@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cast"
 )
 
-// NumericalKafkaBuffer -
-type NumericalKafkaBuffer struct {
+// ArcBuffer -
+type ArcBuffer struct {
 	srv      *Client
 	sensorID uint64
 	max      int32
@@ -21,8 +21,8 @@ type NumericalKafkaBuffer struct {
 	rows     []MessageData
 }
 
-// NumericalKafkaBuffer insert insert numerical data to database
-func (n *NumericalKafkaBuffer) insert() error {
+// ArcBuffer insert insert arc data to database
+func (n *ArcBuffer) insert() error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	defer atomic.StoreInt32(&n.count, 0)
@@ -36,9 +36,9 @@ func (n *NumericalKafkaBuffer) insert() error {
 }
 
 // flush -
-func (n *NumericalKafkaBuffer) flush() error {
+func (n *ArcBuffer) flush() error {
 	if n.count > n.max {
-		return fmt.Errorf("numerical count more than max")
+		return fmt.Errorf("arc count more than max")
 	}
 	if atomic.LoadInt32(&n.count) > 0 {
 		return n.insert()
@@ -47,7 +47,7 @@ func (n *NumericalKafkaBuffer) flush() error {
 }
 
 // append -
-func (n *NumericalKafkaBuffer) append(data ...MessageData) error {
+func (n *ArcBuffer) append(data ...MessageData) error {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
@@ -71,7 +71,7 @@ func (n *NumericalKafkaBuffer) append(data ...MessageData) error {
 }
 
 // sendToKafka -
-func (s *Server) sendToKafka(id uint64, firmware uint16, timestamp int64, sm *protocols.SegmentTemperature) error {
+func (s *Server) sendToKafka(id uint64, firmware uint16, timestamp int64, sm *protocols.SegmentArc) error {
 	if sm == nil || !s.status {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (s *Server) sendToKafka(id uint64, firmware uint16, timestamp int64, sm *pr
 	buff, ok := s.numericalBuffer.Load(key)
 	if !ok {
 		buff, _ = s.numericalBuffer.LoadOrStore(key,
-			&NumericalKafkaBuffer{
+			&ArcBuffer{
 				sensorID: id,
 				max:      8192,
 				rows:     make([]MessageData, 8192),
@@ -92,9 +92,9 @@ func (s *Server) sendToKafka(id uint64, firmware uint16, timestamp int64, sm *pr
 	binary.BigEndian.PutUint64(b, id)
 	sensorID := fmt.Sprintf("%X", b[2:])
 
-	return buff.(*NumericalKafkaBuffer).append(MessageData{
-		Ts:          timestamp / 1e3,
-		SensorID:    sensorID,
-		Temperature: cast.ToFloat64(sm.Data),
+	return buff.(*ArcBuffer).append(MessageData{
+		Ts:       timestamp / 1e3,
+		SensorID: sensorID,
+		ArcData:  cast.ToFloat64(sm.Data),
 	})
 }

@@ -3,8 +3,6 @@ package pkg
 import (
 	"net/http"
 
-	"github.com/kiga-hub/arc-storage/pkg/api"
-
 	"github.com/labstack/echo/v4"
 	"github.com/pangpanglabs/echoswagger/v2"
 )
@@ -30,7 +28,7 @@ func (arc *ArcStorage) SetupWeb(root echoswagger.ApiRoot, base, selfServiceName 
 				"A00000000000"
 			]
 		}
-		`, api.SensorIDResponse{}, nil).
+		`, SensorIDResponse{}, nil).
 		AddResponse(http.StatusNotFound, `
 		{
 			"code": 404,
@@ -53,7 +51,7 @@ func (arc *ArcStorage) SetupWeb(root echoswagger.ApiRoot, base, selfServiceName 
 		SetSummary("Get information of sensor ids")
 
 	g = root.Group(TDEngineAPI, base)
-	g.GET("/temperature", arc.handlerWrapper(selfServiceName, arc.getSensorLists)).
+	g.GET("/arc", arc.handlerWrapper(selfServiceName, arc.getSensorLists)).
 		AddParamQuery(true, "inside", "inside swarm or not", false).
 		AddParamQuery("", "sensorids", "多个ID逗号分隔", true).
 		AddParamQuery(int64(0), "from", "起始时间", true).
@@ -76,13 +74,13 @@ func (arc *ArcStorage) SetupWeb(root echoswagger.ApiRoot, base, selfServiceName 
 					"data": [
 						{
 							"Time": 1658209829000,
-							"Temperature": 20.9
+							"arc": []byte{0x94,0xC9,0x60,0x00,0xC2,0x48}]
 						},
 					"count": 1
 				}
 			]
 		}
-		`, api.TemperatureDataResponse{}, nil).
+		`, []byte{}, nil).
 		AddResponse(http.StatusBadRequest, `
 		{
 			"code": 400,
@@ -107,7 +105,7 @@ func (arc *ArcStorage) SetupWeb(root echoswagger.ApiRoot, base, selfServiceName 
 			"msg": "Too Many Requests:"+ id
 		}		
 		`, nil, nil).
-		SetOperationId("temperature").
-		SetSummary("Return temperature values. Querying from TDEngine")
+		SetOperationId("arc").
+		SetSummary("Return arc values. Querying from TDEngine")
 
 }

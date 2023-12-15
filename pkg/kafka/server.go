@@ -51,7 +51,7 @@ func New(opts ...Option) (Handler, error) {
 // Stop -
 func (s *Server) Stop() {
 	s.numericalBuffer.Range(func(key, value interface{}) bool {
-		if err := value.(*NumericalKafkaBuffer).flush(); err != nil {
+		if err := value.(*ArcBuffer).flush(); err != nil {
 			s.logger.Errorw("kafka numerical flush", "err", err)
 		}
 		s.numericalBuffer.Delete(key)
@@ -79,7 +79,7 @@ func (s *Server) Start(ctx context.Context) {
 			return
 		}
 		s.numericalBuffer.Range(func(key, value interface{}) bool {
-			b := value.(*NumericalKafkaBuffer)
+			b := value.(*ArcBuffer)
 			if err := b.flush(); err != nil {
 				s.logger.Errorw("kafka nemerical flush", "err", err)
 			}
@@ -91,11 +91,11 @@ func (s *Server) Start(ctx context.Context) {
 // Write -
 func (s *Server) Write(id uint64, frame *protocols.Frame) error {
 	var err error
-	var sm *protocols.SegmentTemperature
+	var sm *protocols.SegmentArc
 	for _, stype := range frame.DataGroup.STypes {
 		switch stype {
-		case protocols.STypeTemperature:
-			sm, err = frame.DataGroup.GetTSegment()
+		case protocols.STypeArc:
+			sm, err = frame.DataGroup.GetArcSegment()
 			if err != nil {
 				s.logger.Errorw("GetNumericalTableSegment", "err", err)
 				return err
@@ -104,10 +104,7 @@ func (s *Server) Write(id uint64, frame *protocols.Frame) error {
 	}
 
 	// 获取Frame中的Flag字段,和传感器ID组合，作为numericalBuffer 的key
-	var mode uint16
-	mode += uint16(frame.Flag[0])
-	mode <<= 8
-	mode += uint16(frame.Flag[1])
+	var mode uint16 = 0
 
 	// 数值表数据入库
 	if s.config.Kafka.Enable && sm != nil {

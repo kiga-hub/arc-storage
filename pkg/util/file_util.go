@@ -95,20 +95,20 @@ func CheckFile(filename string) (exists, canRead, canWrite bool, modTime time.Ti
 }
 
 // GetFileList -
-func GetFileList(path string, audiofiles map[string][]string, key string) {
+func GetFileList(path string, arcfiles map[string][]string, key string) {
 	fs, _ := ioutil.ReadDir(path)
 	for _, file := range fs {
 		if file.IsDir() {
 			key = path + file.Name()
-			GetFileList(path+file.Name(), audiofiles, key)
+			GetFileList(path+file.Name(), arcfiles, key)
 		} else {
-			audiofiles[string(key)] = append(audiofiles[string(key)], path+"/"+file.Name())
+			arcfiles[string(key)] = append(arcfiles[string(key)], path+"/"+file.Name())
 		}
 	}
 }
 
 // GetBigFileLists -
-func GetBigFileLists(path string, audiofiles map[string]string, key string) error {
+func GetBigFileLists(path string, arcfiles map[string]string, key string) error {
 	fs, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func GetBigFileLists(path string, audiofiles map[string]string, key string) erro
 				return err
 			}
 			startstr := TimeStringReplace(start)
-			audiofiles[startstr] = path + "/" + file.Name()
+			arcfiles[startstr] = path + "/" + file.Name()
 		}
 	}
 	return nil
@@ -151,12 +151,12 @@ func SeekBigFileHeader(filename string, start, size int64) ([]byte, error) {
 }
 
 // GetFileListName -
-func GetFileListName(path string, audiofiles map[string]string, key string) error {
+func GetFileListName(path string, arcfiles map[string]string, key string) error {
 	fs, _ := ioutil.ReadDir(path)
 	for _, file := range fs {
 		if file.IsDir() {
 			//	key += file.Name()[:2]
-			err := GetFileListName(path+file.Name(), audiofiles, key) // key+file.Name()[:17]
+			err := GetFileListName(path+file.Name(), arcfiles, key) // key+file.Name()[:17]
 			if err != nil {
 				return err
 			}
@@ -167,7 +167,7 @@ func GetFileListName(path string, audiofiles map[string]string, key string) erro
 					return err
 				}
 				startstr := TimeStringReplace(start)
-				audiofiles[startstr] = path + "/" + file.Name()
+				arcfiles[startstr] = path + "/" + file.Name()
 
 			}
 		}

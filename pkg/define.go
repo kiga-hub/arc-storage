@@ -1,28 +1,28 @@
-package api
+package pkg
 
 const (
 	// Success 成功返回OK
 	Success = 0
 )
 
-// TemperatureInfo include temperasture value
-type TemperatureInfo struct {
-	Time        int64   `db:"time"`
-	Temperature float32 `db:"temperature"`
+// ArcDataInfo include arc value
+type ArcDataInfo struct {
+	Time int64   `db:"time"`
+	Data float32 `db:"data"`
 }
 
-// TemperatureData contains tempratures of a sensor
-type TemperatureData struct {
-	SensorID string          `json:"sensorid,omitempty"`
-	Data     TemperatureInfo `json:"data,omitempty"`
-	Count    int64           `json:"count"`
+// ArcDataData contains tempratures of a sensor
+type ArcDataData struct {
+	SensorID string      `json:"sensorid,omitempty"`
+	Data     ArcDataInfo `json:"data,omitempty"`
+	Count    int64       `json:"count"`
 }
 
-// TemperatureDataResponse is the response for getting temprature
-type TemperatureDataResponse struct {
-	Code int               `json:"code,omitempty"`
-	Msg  string            `json:"msg,omitempty"`
-	Data []TemperatureData `json:"data,omitempty"`
+// ArcDataResponse is the response for getting temprature
+type ArcDataResponse struct {
+	Code int           `json:"code,omitempty"`
+	Msg  string        `json:"msg,omitempty"`
+	Data []ArcDataData `json:"data,omitempty"`
 }
 
 // SensorIDResponse is the response for getting sensor ids

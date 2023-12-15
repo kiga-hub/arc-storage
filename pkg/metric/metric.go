@@ -108,7 +108,7 @@ func (h *HandlerMonitor) SetOutOfOrderLabelValues(sensorID string) {
 
 // FileCacheMonitor 文件缓存监控
 type FileCacheMonitor struct {
-	consumingTimeMetric  ConsumingTimeMetric  // 音频存储消耗指标
+	consumingTimeMetric  ConsumingTimeMetric  // 存储消耗指标
 	dataSizeMetric       DataSizeMetric       // 存储数据大小指标
 	diskWriteErrorMetric DiskWriteErrorMetric // 磁盘写入指标
 	fileReadMetric       FileReadMetric       // 文件读取指标

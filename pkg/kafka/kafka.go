@@ -18,9 +18,9 @@ type kafkaMessage struct {
 
 // MessageData -
 type MessageData struct {
-	Ts          int64   `json:"ts"`
-	SensorID    string  `json:"sensorID"`    // 传感器ID
-	Temperature float64 `json:"temperature"` // 温度
+	Ts       int64   `json:"ts"`
+	SensorID string  `json:"sensorID"` // sensor
+	ArcData  float64 `json:"arcData"`  // arc
 }
 
 // Client -
@@ -40,16 +40,16 @@ func NewKafkaClient(logger logging.ILogger, k *arcKafka.Kafka, config *config.Ar
 }
 
 // SendResultToKafka -
-func (kc *Client) SendResultToKafka(arr *NumericalKafkaBuffer) error {
+func (kc *Client) SendResultToKafka(arr *ArcBuffer) error {
 	if kc.client == nil {
 		return fmt.Errorf("kafka is nil")
 	}
 	strArray := make([]MessageData, arr.count)
 	for i := 0; i < int(arr.count); i++ {
 		strArray[i] = MessageData{
-			Ts:          arr.rows[i].Ts,
-			SensorID:    arr.rows[i].SensorID,
-			Temperature: arr.rows[i].Temperature,
+			Ts:       arr.rows[i].Ts,
+			SensorID: arr.rows[i].SensorID,
+			ArcData:  arr.rows[i].ArcData,
 		}
 	}
 

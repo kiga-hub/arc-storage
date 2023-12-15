@@ -327,7 +327,7 @@
         }
         ```
 
-    - 传输模式:`gRPC`使用客户端数据流模式(`Client-side streaming RPC`)可以更快速，更高效处理音频等类型文件。
+    - 传输模式:`gRPC`使用客户端数据流模式(`Client-side streaming RPC`)可以更快速，更高效处理多种数据类型文件。
         >设备传感器ID号为`Key`值，数据为`Value`，根据设备ID进行取模操作，分布到对应的协程中进行处理。
         ```golang
         case mes := <-g.grpcmessage:
@@ -406,36 +406,26 @@
         ```
     - TCP包结构
         ```golang
-        //Frame 全包大小 41+n
         type Frame struct {
-            // this part of data is used to validate
             Head      [4]byte //4 头标志 0xFC 0xFC 0xFC 0xFC
-            Version   byte    //1 包格式版本 = 1
             Size      uint32  //4 包大小 [Timestamp, End] = 32+n BigEndian
             Timestamp int64   //8 时间戳/序号 精确到毫秒 BigEndian
-            BasicInfo [6]byte //6 (2-客户 1-设备 1-年份 1-月份 1-日期)
             ID        [6]byte //6 设备编号 (Mac Address)
-            // this part of data will be stored
-            Firmware  [3]byte   //3 固件版本3位
-            Hardware  byte      //1 硬件版本1位
-            Protocol  uint16    //2 协议版本 = 1 BigEndian
-            Flag      [3]byte   //3 标志位 前8位表示数据形式 AVT_____ 第9位表示 有线/无线 其他预留
             DataGroup DataGroup //n 数据
-            // this part of data is used to validate
             Crc uint16 //2 校验位 [Timestamp, Data], CRC-16 BigEndian
             End byte   //1 结束标志 0xFD
         }
         ```
     - 数据处理方式：
         1. 解析:
-            - 由common库提供的方法进行包解析，获取传感器ID，固件、版本信息，采样率、音振温度数据
+            - 由common库提供的方法进行包解析，获取数据
             - 数据处理以数据包中的时间戳为准，对包中的时间戳只进行计算，不更改
             - `parsedFrame`解析错误，丢弃当前数据包
         2. dispatch:
             - 16个协程进行Frame的处理
             - 解析前的数据`protocols.Frame`实时缓存到(`DataCacheContainer`)
-            - 解析后数据根据类型(音频、振动)存到filecache`Buffer`中
-            - 解析的温度数据保存到TDEngine
+            - 解析后数据根据类型存到filecache`Buffer`中
+            - 解析的数据保存到TDEngine
         3. 数据包判断:
             - 时间戳:是否缓存，落盘，丢弃
             - 数据属性：采样率、固件版本、传感器ID、数据包是否连续
@@ -481,7 +471,7 @@ TODO:
 3. 缓存实时数据到cache
     - arc-storage接收到的设备帧数据缓存到内容中供api实时查询使用
 
-4. 温度数据保存到TDEngine
+4. Arc数据保存到TDEngine
 
 5. 保存接口访问记录到TDEngine
 
@@ -524,7 +514,7 @@ TODO:
             Container   *cache.DataCacheContainer
             ASamplerate uint16
         }
-        type AudioData struct {
+        type ArcData struct {
             Data []byte
         }
         ```
@@ -537,15 +527,15 @@ TODO:
         ``` 
         - 创建:arc-storage初始化时创建缓存对象
         - 启动:arc-storage启动服务时启动缓存对象,开启一个协程每秒轮询删除过期帧数据
-        - 数据输入:grpc模块在收到采集器声音,振动的帧数据时,调用cache模块存入数据。
-        - 数据输出:api根据时间查询音频振动数据,如果时间在expirems配置时间内,将从缓存内取出设备帧数据
+        - 数据输入:grpc模块在收到数据时,调用cache模块存入数据。
+        - 数据输出:api根据时间查询数据,如果时间在expirems配置时间内,将从缓存内取出设备帧数据
         - 释放：arc-storage退出时关闭cache对象,退出轮询协程
 
 3. 主要方法(filecache 文件存储):
     - filecache 结构
         ```golang
-        // BigFileCache -
-        type BigFileCache struct {
+        // ArcVolumeCache -
+        type ArcVolumeCache struct {
             DataCache *sync.Map
             lock      util.MultiLocker
             logger    logging.ILogger
@@ -553,8 +543,8 @@ TODO:
             once      sync.Once
         }
 
-        // BigFile -
-        type BigFile struct {
+        // ArcVolume -
+        type ArcVolume struct {
             SensorID        string
             Buffer          *bytes.Buffer
             Dir             string
@@ -578,22 +568,22 @@ TODO:
         ```
         |-filecache对象
             |-DataCache   (并发安全map,key=采集器id,value=BigFile)
-                    |-BigFile (帧数据缓存结构,将接收到的帧数据拼接到buff缓存,记录音频头文件信息)
+                    |-BigFile (帧数据缓存结构,将接收到的帧数据拼接到buff缓存,记录头文件信息)
         ``` 
 
     - 数据流程 
         | grpc接收协程| 文件解码和处理协程| filecache协程 | 
         | ---- | ---- | ---- | 
-        | 数据按设备id负载均衡,投递给16个解码和文件处理协程|音频和振动帧数据缓存入对应的filecache对象,如果缓存时间>=1分钟，则将该数据投递到文件存档协程并清空该设备id缓存| 将投递过来的文件数据存入磁盘wav文件，如果存在则采用追加写入|
+        | 数据按设备id负载均衡,投递给16个解码和文件处理协程，帧数据缓存入对应的filecache对象,如果缓存时间>=1分钟，则将该数据投递到文件存档协程并清空该设备id缓存| 将投递过来的文件数据存入磁盘wav文件，如果存在则采用追加写入|
 
-        - 创建:arc-storage初始化时创建声音文件对象和振动文件对象
+        - 创建:arc-storage初始化时创建文件对象
         - 启动:arc-storage启动服务时创建16个解码和文件处理协程,处理协程根据设备id号负载均衡配置任务,filecache对象创建文件存档协程
         - 数据输入:
             - 1.grpc收到的帧数据,投递到解码协程，
             - 2.解码协程解码后再投递到数据处理协程
-            - 3.数据处理协程将帧数据分音频和振动两个类型加入对应的filecache缓存。如果该设备id缓存时间达到1分钟，则将该设备id当前的缓存投递到文件存档协程并清空该设备id的缓存数据
+            - 3.数据处理协程将帧数据加入对应的filecache缓存。如果该设备id缓存时间达到1分钟，则将该设备id当前的缓存投递到文件存档协程并清空该设备id的缓存数据
             - 4.文件存档协程将收到的缓存数据存入磁盘wav文件
-        - 数据输出:api根据时间查询音频振动数据,如果时间在expirems配置时间外,将磁盘查找对应的wav文件。
+        - 数据输出:api根据时间查询数据,如果时间在expirems配置时间外,将磁盘查找对应的wav文件。
             - wav文件名包含创建时间,根据创建时间和数据量偏移找出需要查询的数据段，返回给api
         - 释放：arc-storage退出时关闭filecache对象,退出协程
     - wav文件格式
@@ -601,16 +591,13 @@ TODO:
         - wav文件文件追加:直接将采集到的二进制数据追加到已有的wav文件中,并修改文件名的结束时间
         - wav文件文件命名:采集设备ID_类型_开始时间_结束时间_采样率_固件版本_硬件版本_标志位_arc-storage版本号.wav
             - 结束时间是依照采集数据速度来计算,比如采样率32000，channel=1,位深16的采集设备 每毫秒秒采集存档数据=1000*32000*1*16/8,结束时间=开始时间+(文件大小-44)/每毫秒秒采集存档数据
-            - 历史数据查询根据wav文件名开始时间和结束查找到对应的wav文件,根据采集速度来偏移出wav文件中指定时间段的声音数据或振动数据
+            - 历史数据查询根据wav文件名开始时间和结束查找到对应的wav文件,根据采集速度来偏移出wav文件中指定时间段的数据
 
 1. 主要方法(TDEngine时序数据库):
     - 相关数据表和超级表:
         ```golang
-            // TemperatureTableName -
-            TemperatureTableName = "t_v1_"
-            // VibrateTableName -
-            VibrateTableName = "v_v1_"
-            // TDEngineBackUpSTableName -
+            // ArcTableName -
+            ArcTableName = "arc_v1_"
             TDEngineBackUpSTableName = "taosbaks_v1"
             // TDEngineBackUpTableName -
             TDEngineBackUpTableName = "taosbak_v1"
@@ -624,17 +611,11 @@ TODO:
             RecordBackUpTableName = "record"
             // RecordStatusSTableName -
             RecordStatusSTableName = "status_s"
-            // RecordAStatusTableName -
-            RecordAStatusTableName = "Astatus"
-            // RecordVStatusTableName -
-            RecordVStatusTableName = "Vstatus"
         ```
     - 代码实现:
         ```golang
-        // SearchTemperatureHistoryData query data
-        func (c *TaoClient) SearchTemperatureHistoryData(databasename, sensorid string, from, to string, israwdata bool, interval int, fill, function string) (int64, []TemperatureInfo, error) 
-        // SearchVibrateDataHistory query data
-        func (c *TaoClient) SearchVibrateDataHistory(databasename, sensorid string, from, to string, israwdata bool, interval int, fill, function string) (int64, []VibrateInfo, error) 
+        // SearchArcHistoryData query data
+        func (c *TaoClient) SearchArcHistoryData(databasename, sensorid string, from, to string, israwdata bool, interval int, fill, function string) (int64, []ArcDataInfo, error) 
         ```
 
 2. 主要方法(HayStack):
@@ -678,8 +659,7 @@ TODO:
             - <img src="images/index_file.png" width="60%">
 
         - 数据存储目录:每个传感器ID对应一个目录，子目录包含以日期为名的文件夹，接收数据后创建以时间单位的Volume文件。
-            - /arc/local/demonode/arc-storage/A00000000000/20220324/audio/
-            - /arc/local/demonode/arc-storage/A00000000000/20220324/vibrate
+            - /arc/local/demonode/arc-storage/A00000000000/20220324/arc/
             - 数据段保存时间戳，采样率等信息
             - 数据属性变更(采样率，校验，版本)，新建Volume
             - 每个时间段自动生成保存数据的文件(.dat).和用于检索数据文件的索引文件(.idx)。
@@ -755,40 +735,6 @@ TODO:
 
 - [当前版本-数据访问接口](接口文档说明.md)
 
-### 3.7.2 需求梳理
-
-1. 根据查询条件获取数据量和响应时间
-2. 设置系统支持的单次查询最大数据量的限额，最大查询时间的限额，最早时间点限制
-3. 当实际查询消耗的以上三项指标超额时的处理方式
-4. 数据过算法，将音频过算法计算声音强度等数值；将振动数据过算法计算能量值等数值。
-
-### 3.7.3 解决方案（历史采样法）
-
-#### 3.7.3.1 图例
-
-```mermaid
-  flowchart LR
-
-  user[用户]
-  ask[请求]
-  hbm[判断行为]
-  hd[查询数据]
-  ham[记录采样]
-  rtn[返回]
-  n2[获取采样]  
-  n3[用户]
-  over[结束]
-  
-  user --> ask
-  ask --> hbm 
-  hbm -- confirm --> hd 
-  hd --> ham --> rtn
-  hbm -- no confirm --> n2
-  n2 --> n3
-  n3 -- confirm --> ask
-  n3 -- no confirm --> over
-
-```
 
 #### 3.7.3.2 描述
 
@@ -801,10 +747,3 @@ TODO:
     * 根据配置文件中的最早时间点做参数判断。
     * 根据配置文件中的最大查询耗时做数据查询超时控制（需要数据库支持），超时报错。
     * 根据配置文件中的最大datasize，与当前签名的历史最大数据尺寸数据做比较，超过则不执行查询，报错提示，当前签名没有历史数据则直接查询。
-
-#### 3.7.3.3 详细设计
-
-#### 3.7.3.4 补充：
-
-> 时间参数可以翻译转换成int型（天数）以增加签名命中率，1月1日-1月5日和1月10日-1月15日都是查询5天的数据，对该功能来说没有本质区别。类似这种情况的参数都可以做聚合性转换以增加签名命中率。
-> 

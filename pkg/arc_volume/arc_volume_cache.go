@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path"
@@ -25,11 +24,9 @@ import (
 )
 
 var (
-	// DataTypeMap 数据类型，描述转换
+	// DataTypeMap Data type, description conversion
 	DataTypeMap = map[string]string{
-		"A": "audio",
-		"V": "vibrate",
-		"T": "temperature",
+		"Arc": "TypeArc",
 	}
 )
 
@@ -49,7 +46,7 @@ type ArcVolume struct {
 	Dir             string
 	CreateTime      time.Time
 	SaveTime        time.Time
-	LastTimestamp   time.Time // 上一帧时间戳
+	LastTimestamp   time.Time
 	FirmWare        string
 	StatusOfStorage string
 	MinuteStr       string
@@ -64,7 +61,7 @@ type ArcVolume struct {
 
 // NewArcVolumeCache -
 func NewArcVolumeCache(logger logging.ILogger, config *config.ArcConfig, fileType string) (*ArcVolumeCache, error) {
-	// 初始化指标采集模块
+	// Initialize the metric collection module
 	ct := monitor.NewConsumingTime(fileType)
 	ds := monitor.NewDataSize(fileType)
 	dwe := monitor.NewDiskWriteError(fileType)
@@ -82,7 +79,7 @@ func NewArcVolumeCache(logger logging.ILogger, config *config.ArcConfig, fileTyp
 	}, nil
 }
 
-// SafeClose -关闭Data处理channel
+// SafeClose -close Data process channel
 func (b *ArcVolumeCache) SafeClose() {
 	b.queue.Close()
 }
@@ -101,13 +98,7 @@ func (b *ArcVolumeCache) ReadDataByQueue(sensorID, fileType string, t1, t2 time.
 }
 func (b *ArcVolumeCache) readDataLogic(ctx context.Context, sensorID, fileType string, t1, t2 time.Time) ([]byte, *utils.ResponseV2) {
 
-	channel := 1
 	channelmulbits := 2
-	if fileType == "vibrate" {
-		channel = 3
-		channelmulbits = 6
-	}
-
 	// 获取以天为单位的时间范围
 	daysdiffer, count, err := util.GetDaysDiffer(t1.UTC().Format("2006-01-02 15:04:05"), t2.UTC().Format("2006-01-02 15:04:05"))
 	if err != nil {
@@ -318,21 +309,6 @@ func (b *ArcVolumeCache) readDataLogic(ctx context.Context, sensorID, fileType s
 					}
 				}
 
-				wavheader, err := util.ConvertPCMToWavHeader(
-					finalsize,
-					channel,
-					cast.ToInt(sampleratestr),
-					16,
-				)
-				if err != nil {
-					b.logger.Errorw("convertPCMToWav", "err", err)
-					return nil, &utils.ResponseV2{
-						Code: http.StatusNotFound,
-						Msg:  http.StatusText(http.StatusNotFound),
-					}
-				}
-
-				Response.Write(wavheader)
 				Response.Write(data)
 
 				b.logger.Debugw("Response info", "sensorid", sensorID, "Response size", Response.Len())
@@ -372,14 +348,12 @@ func (bf *ArcVolume) Update(t time.Time) {
 }
 
 // PreWriteToFileCache 深拷贝数据,准备写入FileCache
-// secondHalfSize 切分过零点的音、振数据，后半段数据大小
 func (b *ArcVolumeCache) PreWriteToFileCache(bf *ArcVolume, t time.Time, secondHalfSize int) error {
 	if bf.Buffer.Len()-secondHalfSize <= 0 {
 		b.logger.Debug("PreWriteToFileCache", "bufferSize", bf.Buffer.Len(), "secondHalfSize", secondHalfSize, "sensorID", bf.SensorID)
 	}
 	// deep copy the data
 	buffer := bytes.NewBuffer([]byte{})
-	// Buffer包括过零点的音振所有数据, 写入文件前需要移除切分的后半段数据
 	if bf.Buffer.Len() > secondHalfSize {
 		buffer.Grow(bf.Buffer.Len() - secondHalfSize)
 		buffer.Write(bf.Buffer.Bytes()[:bf.Buffer.Len()-secondHalfSize])
@@ -512,38 +486,6 @@ func renameBigFile(ctx context.Context, logger logging.ILogger, samplerate float
 	return nil
 }
 
-// resetBigFileHeader -
-func resetBigFileHeader(ctx context.Context, logger logging.ILogger, filename string, channel int, samplerate string) error {
-
-	fileInfo, err := os.Stat(filename)
-	if err != nil {
-		return err
-	}
-	datasize := fileInfo.Size() - 44
-
-	wavheader, _ := util.ConvertPCMToWavHeader(
-		cast.ToInt(datasize),
-		channel,
-		cast.ToInt(samplerate),
-		16,
-	)
-
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0644) //os.O_TRUNC|
-	if err != nil {
-		return fmt.Errorf("file create failed. err: " + err.Error())
-	}
-	defer f.Close()
-
-	start, _ := f.Seek(0, io.SeekStart)
-
-	_, err = f.WriteAt(wavheader, start)
-	if err != nil {
-		return fmt.Errorf("WriteString: " + err.Error())
-	}
-
-	return nil
-}
-
 // isFirstCreateFile 判断是否是第一次创建文件
 func isFirstCreateFile(filepath, storagestatus, sensorid, samplerate string, createtime time.Time) bool {
 	start, _, id, _, samp, err := util.GetTimeRangeFromFileName(filepath)
@@ -575,24 +517,6 @@ func createnewFile(ctx context.Context, logger logging.ILogger, filepath string,
 		return fmt.Errorf("file create error: %v", err)
 	}
 	defer file.Close()
-
-	wavheader, _ := util.ConvertPCMToWavHeader(
-		len(data),
-		channel,
-		samplerte,
-		16,
-	)
-
-	b := bytes.NewBuffer(wavheader)
-	if _, err := b.Write(data); err != nil {
-		return fmt.Errorf("data combine error: %v", err)
-	}
-
-	_, err = file.Write(b.Bytes())
-	if err != nil {
-		return fmt.Errorf("file write error: %v", err)
-	}
-
 	return nil
 }
 
@@ -608,11 +532,6 @@ func append2ExistFile(ctx context.Context, logger logging.ILogger, filepath stri
 
 		if err := appendBigFileData(ctx, logger, filename, data); err != nil {
 			return fmt.Errorf("appendBigFileData: %v", err)
-		}
-
-		// 修改大文件头. 44字节
-		if err := resetBigFileHeader(ctx, logger, filename, channel, cast.ToString(samplerate)); err != nil {
-			return fmt.Errorf("resetBigFileHeader: %v", err)
 		}
 
 		// 修改保存时间，文件重命名
