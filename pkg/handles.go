@@ -33,8 +33,6 @@ import (
 const (
 	// ArcStorageAPI Arc Storage Data API
 	ArcStorageAPI = "Arc Storage Data"
-	// TDEngineAPI tdengine api
-	TDEngineAPI = "Arc etc."
 	// DataBaseName arc
 	DataBaseName = "arc"
 )
@@ -46,18 +44,6 @@ const (
 	// TypeArc "Arc"
 	TypeArc = "Arc"
 )
-
-// RecordTimeRangeParam -
-type RecordTimeRangeParam struct {
-	Result string      `json:"result" xml:"result" form:"result" query:"result"`
-	Time   []TimeRange `json:"time"  xml:"time" form:"time" query:"time"`
-}
-
-// TimeRange -
-type TimeRange struct {
-	From string `json:"from" xml:"from" form:"from" query:"from"`
-	To   string `json:"to" xml:"to" form:"to" query:"to"`
-}
 
 // ArcStorage arc storage struct
 type ArcStorage struct {
@@ -84,7 +70,7 @@ type ArcStorage struct {
 
 // NewArcStorage Instantiation object
 func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCache *microComponent.GossipKVCacheComponent, k kafka.Handler) (*ArcStorage, error) {
-	// 配置数据大小校验
+	// configure data size validation
 	err := protocols.ConfigFrame(math.MaxUint32 / 2)
 	if err != nil {
 		return nil, err
@@ -95,13 +81,11 @@ func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCac
 		return nil, err
 	}
 
-	// 初始化指标采集模块
-	pi := monitor.NewPackageInterrupt()
-	src := monitor.NewSampleRateChanged()
+	// initialize the mtric collection module
+
 	g := monitor.NewGRPC()
-	order := monitor.NewOutOfOrder()
 	cacheRead := monitor.NewCacheRead()
-	m, err := metric.NewHandlerMonitor(pi, src, g, order, cacheRead)
+	m, err := metric.NewHandlerMonitor(g, cacheRead)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +116,7 @@ func NewArcStorage(config *config.ArcConfig, logger logging.ILogger, gossipKVCac
 
 	// cache enable
 	if db.config.Cache.Enable {
-		// 实时查询
+		// real-time query
 		db.arcCache = cache.NewCacheRepo(logger)
 	}
 
@@ -156,7 +140,7 @@ func (arc *ArcStorage) receiveDataTimerTask(sigchan chan os.Signal) {
 			arc.logger.Errorf("Caught signal %v: terminating\n", sig)
 			return
 		case <-ticker.C:
-			// 定时检查是否超时
+			// regularly check the timeout
 			arc.timeoutSyncMap.Range(arc.timeOutSyncMapWalk)
 		}
 	}
@@ -212,7 +196,7 @@ func (arc *ArcStorage) Start(stop chan struct{}) {
 	for i := 0; i < arc.config.Work.WorkCount; i++ {
 		arc.decodeJobChans[i] = make(chan []byte, arc.config.Work.ChanCapacity*4)
 		arc.decodeResultChans[i] = make(chan decodeResult, arc.config.Work.ChanCapacity*4)
-		// channel处理最优分配时，timeoutChan只需要分配传感器数量的容量
+		// When the channle handles optimal allcation. timeoutChan only needs to allocate the capacity of the number of sensors.
 		arc.timeoutChans[i] = make(chan uint64, arc.config.Work.ChanCapacity)
 		go arc.decodeWorker(arc.decodeJobChans[i], arc.decodeResultChans[i])
 		go arc.handleDecodeResult(sigchan, i)
@@ -220,7 +204,7 @@ func (arc *ArcStorage) Start(stop chan struct{}) {
 
 	arc.serviceIsClosing = false
 
-	// 检查超时
+	// check for timeout
 	go arc.receiveDataTimerTask(sigchan)
 
 	// start gRPC server
@@ -277,7 +261,7 @@ func (arc *ArcStorage) Close() {
 		arc.timeoutSyncMap.Range(arc.quitSyncMapWalk)
 
 	})
-	// 等待所有数据落盘
+	// wait for all data to be written to disk.
 	time.Sleep(time.Second * 20)
 	arc.logger.Info("Quit!")
 	arc.arcFileStore.SafeClose()
@@ -295,7 +279,7 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 		case sig := <-sigchan:
 			arc.Close()
 			arc.logger.Errorf("Caught signal %v: terminating\n", sig)
-		case id := <-arc.timeoutChans[workindex]: // 超时处理
+		case id := <-arc.timeoutChans[workindex]: // timeout handling.
 			arc.loadAndStoreTimeOutData(id)
 		case drc := <-arc.decodeResultChans[workindex]:
 			r := drc
@@ -330,7 +314,7 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 						Time: item.timestamp, //us
 						Data: argSegment.Data,
 					}
-					// 实时数据缓存
+					// real-time data caching
 					arc.arcCache.Input(dataPoint)
 				}
 
@@ -339,7 +323,7 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 				secondHalfSize := 0
 
 				a, isAfiExist := arc.arcFileStore.DataCache.Load(item.idUint64)
-				// 首次存fileCache，不存在则新建
+				// store arcVolume for the first time, create a new one if it does not exist.
 				if !isAfiExist {
 					buffer := bytes.NewBuffer([]byte{})
 					buffer.Grow(len(argSegment.Data) * 2)
@@ -347,10 +331,8 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 					afi = &arc_volume.ArcVolume{
 						Dir:        arc.config.Work.DataPath,
 						CreateTime: item.timestamp,
-						FirmWare:   item.filenamesuffix,
 						SensorID:   item.idString,
 						Buffer:     buffer,
-						Version:    ArcStorageVersion,
 						Type:       TypeArc,
 					}
 
@@ -361,12 +343,6 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 
 				if isAfiExist {
 					afi = a.(*arc_volume.ArcVolume)
-
-					if item.timestamp.Before(afi.LastTimestamp) {
-						arc.exportMetrics.SetOutOfOrderLabelValues(item.idString)
-						arc.logger.Errorw("timestampOutOfOrder", "sensorID", item.idString, "lastTimestamp", afi.LastTimestamp,
-							"itemTimeStamp", item.timestamp)
-					}
 					afi.SaveTime = item.timestamp.UTC() //item.timestamp.UTC()
 					afi.LastTimestamp = item.timestamp
 					afi.Buffer.Write(arcData)
@@ -385,7 +361,7 @@ func (arc *ArcStorage) handleDecodeResult(sigchan chan os.Signal, workindex int)
 
 					afi.Buffer.Write(arcData)
 
-					// 存储当前时间，用于超时处理
+					// store the current time for timeout handling
 					arc.timeoutSyncMap.Store(item.idUint64, time.Now().UTC())
 
 				}
@@ -444,10 +420,8 @@ func (arc *ArcStorage) loadAndStoreTimeOutData(sensorid uint64) {
 	arc.timeoutSyncMap.Delete(sensorid)
 }
 
-// timeOutSyncMapWalk - 超时大于1分钟，进行落盘
+// timeOutSyncMapWalk - Timeout exceeds 1 minute，trigger a certain operation.
 func (arc *ArcStorage) timeOutSyncMapWalk(key, value interface{}) bool {
-	// 定时1分钟判断是否超时，但是落盘也是按照1分钟进行落盘，时间有可能会重叠，由60s，改为90s
-	// TODO 待测
 	interaval := time.Now().UTC().Sub(value.(time.Time)).Seconds()
 	if interaval >= float64(arc.config.Work.TimeOut) && interaval <= float64(arc.config.Work.TimeOut)+60 {
 		arc.logger.Warnw("checkTimeOut", "keyID", key.(uint64))
@@ -457,7 +431,7 @@ func (arc *ArcStorage) timeOutSyncMapWalk(key, value interface{}) bool {
 	return true
 }
 
-// quitSyncMapWalk - 退出进行落盘
+// quitSyncMapWalk - quit
 func (arc *ArcStorage) quitSyncMapWalk(key, value interface{}) bool {
 	arc.timeoutChans[key.(uint64)&uint64(arc.config.Work.WorkCount-1)] <- key.(uint64)
 	return true

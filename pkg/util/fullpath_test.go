@@ -16,7 +16,7 @@ func CaseNewFullPath(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	file, err := ioutil.TempFile(dir, "tmp.wav")
+	file, err := ioutil.TempFile(dir, "tmp.arc")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile %v", err)
 	}

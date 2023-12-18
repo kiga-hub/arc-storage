@@ -9,7 +9,7 @@ import (
 	"github.com/kiga-hub/arc/protocols"
 )
 
-// parsedFrame 帧数据
+// parsedFrame parsed frame
 type parsedFrame struct {
 	timestamp       time.Time
 	idString        string
@@ -20,20 +20,20 @@ type parsedFrame struct {
 	idUint64        uint64
 }
 
-// decodeWorker 解析
+// decodeWorker decode
 func (arc *ArcStorage) decodeWorker(input chan []byte, output chan decodeResult) {
 	for j := range input {
 		output <- arc.decode(j)
 	}
 }
 
-// decodeResult 解析结果
+// decodeResult result
 type decodeResult struct {
 	err   error
 	items []*parsedFrame
 }
 
-// decode 解析
+// decode decode
 func (arc *ArcStorage) decode(srcdata []byte) decodeResult {
 	result := decodeResult{
 		items: []*parsedFrame{},
@@ -165,7 +165,7 @@ func (arc *ArcStorage) parseFrame(f *protocols.Frame, dataToSave []byte) (*parse
 	}, nil
 }
 
-// ByteToUInt64 传感器[]byte 转为uint64
+// ByteToUInt64  convert sensor []byte to uint64.
 func ByteToUInt64(sensorID []byte) uint64 {
 	return uint64(sensorID[5]) |
 		uint64(sensorID[4])<<8 |
@@ -175,31 +175,31 @@ func ByteToUInt64(sensorID []byte) uint64 {
 		uint64(sensorID[0])<<40
 }
 
-// ParsedFrameConstructor - 构造Frame结构
+// ParsedFrameConstructor - construct frame structure
 func ParsedFrameConstructor(segmentData protocols.ISegment, id uint64, timestamp time.Time) ([]byte, error) {
 	group := protocols.NewDefaultDataGroup()
 
-	// 添加数据段到组
+	// add data segment to group.
 	group.AppendSegment(segmentData)
 	if err := group.Validate(); err != nil {
 		return nil, err
 	}
 
 	fmt.Printf("ParsedFrameConstructor: time: %v,id: %d, size: %d", timestamp, id, segmentData.Size())
-	// 添加组到包
+	// add group to frame
 	framePackage := protocols.NewDefaultFrame()
 	framePackage.SetID(id)
 	framePackage.Timestamp = timestamp.UnixNano() / 1e3
 	framePackage.SetDataGroup(group)
 
-	// 打包二进制
+	// pack binary.
 	buf := make([]byte, framePackage.Size+9)
 	_, err := framePackage.Encode(buf)
 	if err != nil {
 		return nil, err
 	}
 
-	// 数据包有效判断
+	// validation.
 	if err := protocols.FrameValidate(buf); err != nil {
 		return nil, err
 	}

@@ -50,7 +50,6 @@ func (arc *ArcStorage) SetupWeb(root echoswagger.ApiRoot, base, selfServiceName 
 		SetOperationId("sensorids").
 		SetSummary("Get information of sensor ids")
 
-	g = root.Group(TDEngineAPI, base)
 	g.GET("/arc", arc.handlerWrapper(selfServiceName, arc.getSensorLists)).
 		AddParamQuery(true, "inside", "inside swarm or not", false).
 		AddParamQuery("", "sensorids", "多个ID逗号分隔", true).

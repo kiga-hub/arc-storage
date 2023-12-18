@@ -1,0 +1,727 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "arc-storage",
+        "version": "v1.0.2"
+    },
+    "host": "192.168.8.245:8081",
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "paths": {
+        "/api/data/v1/history/arc": {
+            "get": {
+                "tags": [
+                    "Arc Storage Data"
+                ],
+                "summary": "Return arc values. Querying from TDEngine",
+                "operationId": "arc",
+                "parameters": [
+                    {
+                        "name": "inside",
+                        "in": "query",
+                        "description": "inside swarm or not",
+                        "required": false,
+                        "type": "boolean",
+                        "format": "boolean"
+                    },
+                    {
+                        "name": "sensorids",
+                        "in": "query",
+                        "description": "多个ID逗号分隔",
+                        "required": true,
+                        "type": "string",
+                        "format": "string"
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "起始时间",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "终止时间",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "name": "function",
+                        "in": "query",
+                        "description": "可选项,聚合查询",
+                        "required": false,
+                        "type": "string",
+                        "format": "string"
+                    },
+                    {
+                        "name": "interval",
+                        "in": "query",
+                        "description": "可选项,聚合时间段的窗口",
+                        "required": false,
+                        "type": "string",
+                        "format": "string"
+                    },
+                    {
+                        "name": "fill",
+                        "in": "query",
+                        "description": "可选项,数据填充格式",
+                        "required": false,
+                        "type": "string",
+                        "format": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "\n\t\t- 可选项说明: SQL查询使用函数(聚合函数、选择函数、计算函数、按窗口切分聚合等)。\n\t\t- 不使用可选项，则输出查询到的所有数据。\n\t\t- function - 单个输出选择函数,推荐first, 参数:avg,sum,min,max,first,last。\n\t\t- interval - 聚合时间段的窗口,interval指定,最短时间间隔10毫秒(10a),推荐100ms。\n\t\t- fill     - 指定某一窗口区间数据缺失的情况下的填充模式,推荐使用PREV,详细查看文档。\n\t\t{\n\t\t\t\"code\": 0,\n\t\t\t\"msg\": \"OK\",\n\t\t\t\"data\": [\n\t\t\t\t{\n\t\t\t\t\t\"sensorid\": \"A00000000000\",\n\t\t\t\t\t\"data\": [\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\t\"Time\": 1658209829000,\n\t\t\t\t\t\t\t\"arc\": []byte{0x94,0xC9,0x60,0x00,0xC2,0x48}]\n\t\t\t\t\t\t},\n\t\t\t\t\t\"count\": 1\n\t\t\t\t}\n\t\t\t]\n\t\t}\n\t\t",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer",
+                                "format": "int32"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 400,\n\t\t\t\"msg\": \"Bad Request\"\n\t\t}\t\t\n\t\t"
+                    },
+                    "404": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 404,\n\t\t\t\"msg\": \"Not Found\"\n\t\t}\t\t\n\t\t"
+                    },
+                    "429": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 429,\n\t\t\t\"msg\": \"Too Many Requests:\"+ id\n\t\t}\t\t\n\t\t"
+                    },
+                    "503": {
+                        "description": "\n\t\t{\n\t\t\t\"code\":503,\n\t\t\t\"msg\":\"Request Timeout\"\n\t\t}\t\n\t\t"
+                    }
+                }
+            }
+        },
+        "/api/data/v1/history/health": {
+            "get": {
+                "tags": [
+                    "Micro"
+                ],
+                "summary": "get service health",
+                "operationId": "getHealth",
+                "responses": {
+                    "200": {
+                        "schema": {
+                            "$ref": "#/definitions/Health"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/data/v1/history/sensorids": {
+            "get": {
+                "tags": [
+                    "Arc Storage Data"
+                ],
+                "summary": "Get information of sensor ids",
+                "operationId": "sensorids",
+                "parameters": [
+                    {
+                        "name": "inside",
+                        "in": "query",
+                        "description": "inside swarm or not",
+                        "required": false,
+                        "type": "boolean",
+                        "format": "boolean"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 0,\n\t\t\t\"msg\": \"OK\",\n\t\t\t\"data\": [\n\t\t\t\t\"A00000000000\"\n\t\t\t]\n\t\t}\n\t\t",
+                        "schema": {
+                            "$ref": "#/definitions/SensorIDResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 404,\n\t\t\t\"msg\": \"Not Found\"\n\t\t}\t\t\n\t\t"
+                    },
+                    "429": {
+                        "description": "\n\t\t{\n\t\t\t\"code\": 429,\n\t\t\t\"msg\": \"Too Many Requests:\"+ id\n\t\t}\t\t\n\t\t"
+                    },
+                    "503": {
+                        "description": "\n\t\t{\n\t\t\t\"code\":503,\n\t\t\t\"msg\":\"Service Unavailable\"\n\t\t}\t\n\t\t"
+                    }
+                }
+            }
+        },
+        "/api/data/v1/history/status": {
+            "get": {
+                "tags": [
+                    "Micro"
+                ],
+                "summary": "get service status",
+                "operationId": "getStatus",
+                "responses": {
+                    "200": {
+                        "schema": {
+                            "$ref": "#/definitions/Status"
+                        }
+                    }
+                }
+            }
+        },
+        "/gossip/demo1": {
+            "get": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "test sensorid-cluster redirection capability",
+                "operationId": "sensorid-cluster-redirect",
+                "parameters": [
+                    {
+                        "name": "sensorid",
+                        "in": "query",
+                        "description": "sensorid",
+                        "required": true,
+                        "type": "string",
+                        "format": "string"
+                    },
+                    {
+                        "name": "inside",
+                        "in": "query",
+                        "description": "inside swarm or not",
+                        "required": false,
+                        "type": "boolean",
+                        "format": "boolean"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "successful operation"
+                    }
+                }
+            }
+        },
+        "/gossip/demon": {
+            "get": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "test sensorids-cluster redirection or aggregation capability",
+                "operationId": "sensorids-cluster",
+                "parameters": [
+                    {
+                        "name": "sensorids",
+                        "in": "query",
+                        "description": "sensorids",
+                        "required": true,
+                        "type": "string",
+                        "format": "string"
+                    }
+                ],
+                "responses": {
+                    "default": {
+                        "description": "successful operation"
+                    }
+                }
+            }
+        },
+        "/kv": {
+            "get": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "get value, only one item if key is set",
+                "operationId": "get",
+                "parameters": [
+                    {
+                        "name": "key",
+                        "in": "query",
+                        "description": "key",
+                        "required": false,
+                        "type": "string",
+                        "format": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "string",
+                            "format": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "key is set but does not exist",
+                        "schema": {
+                            "type": "string",
+                            "format": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "add a key-value pair, if value is not set, kv will use consider is a sensorid-cluster item and use its cluster name as value",
+                "operationId": "add",
+                "parameters": [
+                    {
+                        "name": "key",
+                        "in": "query",
+                        "description": "key",
+                        "required": true,
+                        "type": "string",
+                        "format": "string"
+                    },
+                    {
+                        "name": "value",
+                        "in": "query",
+                        "description": "value",
+                        "required": false,
+                        "type": "string",
+                        "format": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "string",
+                            "format": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "delte a key",
+                "operationId": "delete",
+                "parameters": [
+                    {
+                        "name": "key",
+                        "in": "query",
+                        "description": "key",
+                        "required": true,
+                        "type": "string",
+                        "format": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "string",
+                            "format": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/node": {
+            "get": {
+                "tags": [
+                    "Gossip Cluster"
+                ],
+                "summary": "get all cluster members",
+                "operationId": "getAll",
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/Node"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "BasicConfig": {
+            "type": "object",
+            "properties": {
+                "api_port": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "APIPort"
+                    },
+                    "format": "int32"
+                },
+                "api_root": {
+                    "type": "string",
+                    "xml": {
+                        "name": "APIRoot"
+                    },
+                    "format": "string"
+                },
+                "app_name": {
+                    "type": "string",
+                    "xml": {
+                        "name": "AppName"
+                    },
+                    "format": "string"
+                },
+                "app_version": {
+                    "type": "string",
+                    "xml": {
+                        "name": "AppVersion"
+                    },
+                    "format": "string"
+                },
+                "body_limit": {
+                    "type": "string",
+                    "xml": {
+                        "name": "APIBodyLimit"
+                    },
+                    "format": "string"
+                },
+                "burst": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "APIBurst"
+                    },
+                    "format": "int32"
+                },
+                "cpu_count": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "CPUCount"
+                    },
+                    "format": "int32"
+                },
+                "expires_in": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "APIExpiresIn"
+                    },
+                    "format": "int32"
+                },
+                "inSwarm": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "InSwarm"
+                    },
+                    "format": "boolean"
+                },
+                "instance": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Instance"
+                    },
+                    "format": "string"
+                },
+                "is_api_body": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsAPIBody"
+                    },
+                    "format": "boolean"
+                },
+                "is_api_rate": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsAPIRate"
+                    },
+                    "format": "boolean"
+                },
+                "is_api_timeout": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsAPITimeout"
+                    },
+                    "format": "boolean"
+                },
+                "is_dev_mode": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsDevMode"
+                    },
+                    "format": "boolean"
+                },
+                "is_dynamic_config": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsDynamicConfig"
+                    },
+                    "format": "boolean"
+                },
+                "is_prof": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsProf"
+                    },
+                    "format": "boolean"
+                },
+                "machine": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Machine"
+                    },
+                    "format": "string"
+                },
+                "node": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Node"
+                    },
+                    "format": "string"
+                },
+                "rate": {
+                    "type": "number",
+                    "xml": {
+                        "name": "APIRate"
+                    },
+                    "format": "double"
+                },
+                "service": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Service"
+                    },
+                    "format": "string"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "APITimeout"
+                    },
+                    "format": "int32"
+                },
+                "work_load": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "WorkLoad"
+                    },
+                    "format": "int32"
+                },
+                "zone": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Zone"
+                    },
+                    "format": "string"
+                }
+            },
+            "xml": {
+                "name": "BasicConfig"
+            }
+        },
+        "ComponentStatus": {
+            "type": "object",
+            "properties": {
+                "is_ok": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsOK"
+                    },
+                    "format": "boolean"
+                },
+                "params": {
+                    "type": "object",
+                    "xml": {
+                        "name": "Params"
+                    },
+                    "additionalProperties": {
+                        "type": "string",
+                        "format": "string"
+                    }
+                }
+            },
+            "xml": {
+                "name": "ComponentStatus"
+            }
+        },
+        "Health": {
+            "type": "object",
+            "properties": {
+                "health": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsHealth"
+                    },
+                    "format": "boolean"
+                }
+            },
+            "xml": {
+                "name": "Health"
+            }
+        },
+        "Node": {
+            "type": "object",
+            "properties": {
+                "Addr": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "xml": {
+                        "name": "Addr",
+                        "wrapped": true
+                    }
+                },
+                "DCur": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "DCur"
+                    },
+                    "format": "int32"
+                },
+                "DMax": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "DMax"
+                    },
+                    "format": "int32"
+                },
+                "DMin": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "DMin"
+                    },
+                    "format": "int32"
+                },
+                "Meta": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "xml": {
+                        "name": "Meta",
+                        "wrapped": true
+                    }
+                },
+                "Name": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Name"
+                    },
+                    "format": "string"
+                },
+                "PCur": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "PCur"
+                    },
+                    "format": "int32"
+                },
+                "PMax": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "PMax"
+                    },
+                    "format": "int32"
+                },
+                "PMin": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "PMin"
+                    },
+                    "format": "int32"
+                },
+                "Port": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "Port"
+                    },
+                    "format": "int32"
+                },
+                "State": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "State"
+                    },
+                    "format": "int32"
+                }
+            },
+            "xml": {
+                "name": "Node"
+            }
+        },
+        "SensorIDResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "xml": {
+                        "name": "Code"
+                    },
+                    "format": "int32"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "string"
+                    },
+                    "xml": {
+                        "name": "Data",
+                        "wrapped": true
+                    }
+                },
+                "msg": {
+                    "type": "string",
+                    "xml": {
+                        "name": "Msg"
+                    },
+                    "format": "string"
+                }
+            },
+            "xml": {
+                "name": "SensorIDResponse"
+            }
+        },
+        "Status": {
+            "type": "object",
+            "properties": {
+                "basic": {
+                    "$ref": "#/definitions/BasicConfig"
+                },
+                "components": {
+                    "type": "object",
+                    "xml": {
+                        "name": "Components"
+                    },
+                    "additionalProperties": {
+                        "$ref": "#/definitions/ComponentStatus"
+                    }
+                },
+                "is_ok": {
+                    "type": "boolean",
+                    "xml": {
+                        "name": "IsOK"
+                    },
+                    "format": "boolean"
+                }
+            },
+            "xml": {
+                "name": "Status"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Micro"
+        },
+        {
+            "name": "Gossip Cluster"
+        },
+        {
+            "name": "Gossip Cluster"
+        },
+        {
+            "name": "Gossip Cluster"
+        },
+        {
+            "name": "Arc Storage Data"
+        }
+    ]
+}

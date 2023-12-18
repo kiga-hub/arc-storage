@@ -31,30 +31,19 @@ const (
 	MonitorDiskWriteErr = "disk_write_err"
 	// MonitorGRPCBytes GRPC接受数据量
 	MonitorGRPCBytes = "gRPC_bytes"
-	// MonitorOutOfOrder 数据包乱序
-	MonitorOutOfOrder = "out_of_order"
-	// MonitorDataInterrupt 数据中断
-	MonitorDataInterrupt = "data_interrupt"
-	// MonitorSampleRateChanged 采样率改变
-	MonitorSampleRateChanged = "sampleRate_changed"
+
 )
 
 // HandlerMonitor handler监控
 type HandlerMonitor struct {
-	packageInterruptMetric  PackageInterruptMetric  // 包中断指标
-	sampleRateChangedMetric SampleRateChangedMetric // 采样率变化指标
 	gRPCMetric              GRPCMetric              // GRPC数据量指标
 	cacheMetric             CacheReadMetric         // 缓存读取指标
-	outOfOrderMetric        OutOfOrderMetric        // 数据包乱序指标
 }
 
 // NewHandlerMonitor .
-func NewHandlerMonitor(pi PackageInterruptMetric, src SampleRateChangedMetric, grpc GRPCMetric, order OutOfOrderMetric, cacheRead CacheReadMetric) (*HandlerMonitor, error) {
+func NewHandlerMonitor(grpc GRPCMetric,cacheRead CacheReadMetric) (*HandlerMonitor, error) {
 	h := &HandlerMonitor{
-		packageInterruptMetric:  pi,
-		sampleRateChangedMetric: src,
 		gRPCMetric:              grpc,
-		outOfOrderMetric:        order,
 		cacheMetric:             cacheRead,
 	}
 	if err := h.registerHandlerMonitor(); err != nil {
@@ -66,15 +55,6 @@ func NewHandlerMonitor(pi PackageInterruptMetric, src SampleRateChangedMetric, g
 
 // registerHandlerMonitor 注册handler监控
 func (h *HandlerMonitor) registerHandlerMonitor() error {
-	if err := h.packageInterruptMetric.Register(); err != nil {
-		return err
-	}
-	if err := h.sampleRateChangedMetric.Register(); err != nil {
-		return err
-	}
-	if err := h.outOfOrderMetric.Register(); err != nil {
-		return err
-	}
 	if err := h.cacheMetric.Register(); err != nil {
 		return err
 	}
@@ -89,21 +69,6 @@ func (h *HandlerMonitor) SetGRPCLabelValues(sensorID string, size float64) {
 // SetCacheReadValues api获取缓存统计
 func (h *HandlerMonitor) SetCacheReadValues(sensorID, result string) {
 	h.cacheMetric.Inc(sensorID, result)
-}
-
-// SetInterruptLabelValues 采集数据包中断次数
-func (h *HandlerMonitor) SetInterruptLabelValues(sensorID string) {
-	h.packageInterruptMetric.Inc(sensorID)
-}
-
-// SetSampleRateLabelValues 采集采样率变化次数
-func (h *HandlerMonitor) SetSampleRateLabelValues(sensorID string) {
-	h.sampleRateChangedMetric.Inc(sensorID)
-}
-
-// SetOutOfOrderLabelValues 数据包乱序次数
-func (h *HandlerMonitor) SetOutOfOrderLabelValues(sensorID string) {
-	h.outOfOrderMetric.Inc(sensorID)
 }
 
 // FileCacheMonitor 文件缓存监控

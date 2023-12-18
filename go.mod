@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/docker/docker v24.0.7+incompatible
-	github.com/kiga-hub/arc v1.0.6
+	github.com/kiga-hub/arc v1.0.7
 	github.com/labstack/echo/v4 v4.11.3
 	github.com/pangpanglabs/echoswagger/v2 v2.4.1
 	github.com/pkg/errors v0.9.1

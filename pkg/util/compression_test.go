@@ -18,13 +18,13 @@ func CaseGzipAndUnGzipFile(t *testing.T) {
 	defer os.RemoveAll(subdirectory)
 
 	filepath := subdirectory + "/" + "tmp.gz"
-	dst := subdirectory + "/" + "test.wav"
+	dst := subdirectory + "/" + "test.arc"
 
 	Convey("GzipFile", t, func() {
 		Convey("GzipFile", func() {
 			header := make([]byte, 0)
 			data := make([]byte, 0)
-			err = GzipFile(subdirectory, filepath, "test.wav", header, data)
+			err = GzipFile(subdirectory, filepath, "test.arc", header, data)
 			So(err, ShouldBeNil)
 		})
 		Convey("UnGzipFile", func() {

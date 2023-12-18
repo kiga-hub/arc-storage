@@ -1,17 +1,5 @@
 package metric
 
-// PackageInterruptMetric 包数据中断度量指标
-type PackageInterruptMetric interface {
-	Inc(args ...string) // 自增1
-	Register() error    // 注册
-}
-
-// SampleRateChangedMetric 采样率变化度量指标
-type SampleRateChangedMetric interface {
-	Inc(args ...string) // 自增1
-	Register() error    // 注册
-}
-
 // GRPCMetric GRPC数据量度量指标
 type GRPCMetric interface {
 	Add(val float64, args ...string) // 自增给定值
@@ -44,12 +32,6 @@ type DataSizeMetric interface {
 
 // DiskWriteErrorMetric 磁盘写入错误指标
 type DiskWriteErrorMetric interface {
-	Inc(args ...string) // 自增1
-	Register() error    // 注册
-}
-
-// OutOfOrderMetric 数据包乱序指标
-type OutOfOrderMetric interface {
 	Inc(args ...string) // 自增1
 	Register() error    // 注册
 }

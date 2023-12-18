@@ -157,7 +157,6 @@ type DataGroup struct {
       - isInterrupt flag
    3. 当前Frame开始时间与结束时间不在同一分钟时间段内
    4. 服务异常退出，退出前Buffer数据写入文件
-      - (写入文件，结束时间通过采样率重新计算结束时间)
    5. 接收数据，Frame时间戳超时，Buffer数据写入文件
 
 4. 时间戳计算

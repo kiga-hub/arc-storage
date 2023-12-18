@@ -360,9 +360,6 @@
 3. 传感器数据属性判断
     - 时间戳错误
     - SensorID错误
-    - 采样率改变
-    - 固件信息改变
-    - 版本信息改变
     - 数据包不连续
     - 解析错误
 
@@ -428,7 +425,6 @@
             - 解析的数据保存到TDEngine
         3. 数据包判断:
             - 时间戳:是否缓存，落盘，丢弃
-            - 数据属性：采样率、固件版本、传感器ID、数据包是否连续
         4. 落盘:
             - 满足落盘时间(每分钟)对缓存数据进行落盘操作
             - 数据包不连续，超时，异常退出时对已缓存数据进行落盘
@@ -550,17 +546,8 @@ TODO:
             Dir             string
             CreateTime      time.Time
             SaveTime        time.Time
-            FirmWare        string
-            StatusOfStorage string
             MinuteStr       string
             Version         string
-            Type            string
-            SampleRate      float64
-            DynamicRange    byte
-            Resolution      byte
-            Channel         byte
-            Bits            byte
-            isInterrupt    bool
         }
         ```
         
@@ -586,12 +573,6 @@ TODO:
         - 数据输出:api根据时间查询数据,如果时间在expirems配置时间外,将磁盘查找对应的wav文件。
             - wav文件名包含创建时间,根据创建时间和数据量偏移找出需要查询的数据段，返回给api
         - 释放：arc-storage退出时关闭filecache对象,退出协程
-    - wav文件格式
-        - wav文件文件格式:采用44字节头信息+byte数据流的二进制文件格式
-        - wav文件文件追加:直接将采集到的二进制数据追加到已有的wav文件中,并修改文件名的结束时间
-        - wav文件文件命名:采集设备ID_类型_开始时间_结束时间_采样率_固件版本_硬件版本_标志位_arc-storage版本号.wav
-            - 结束时间是依照采集数据速度来计算,比如采样率32000，channel=1,位深16的采集设备 每毫秒秒采集存档数据=1000*32000*1*16/8,结束时间=开始时间+(文件大小-44)/每毫秒秒采集存档数据
-            - 历史数据查询根据wav文件名开始时间和结束查找到对应的wav文件,根据采集速度来偏移出wav文件中指定时间段的数据
 
 1. 主要方法(TDEngine时序数据库):
     - 相关数据表和超级表:
@@ -599,18 +580,6 @@ TODO:
             // ArcTableName -
             ArcTableName = "arc_v1_"
             TDEngineBackUpSTableName = "taosbaks_v1"
-            // TDEngineBackUpTableName -
-            TDEngineBackUpTableName = "taosbak_v1"
-            // AsyncBackUpSTableName -
-            AsyncBackUpSTableName = "asyncbaks_v1"
-            // AsyncBackUpTableName -
-            AsyncBackUpTableName = "asyncbak_v1"
-            // RecordBackUpSTableName -
-            RecordBackUpSTableName = "record_s"
-            // RecordBackUpTableName -
-            RecordBackUpTableName = "record"
-            // RecordStatusSTableName -
-            RecordStatusSTableName = "status_s"
         ```
     - 代码实现:
         ```golang
@@ -660,8 +629,8 @@ TODO:
 
         - 数据存储目录:每个传感器ID对应一个目录，子目录包含以日期为名的文件夹，接收数据后创建以时间单位的Volume文件。
             - /arc/local/demonode/arc-storage/A00000000000/20220324/arc/
-            - 数据段保存时间戳，采样率等信息
-            - 数据属性变更(采样率，校验，版本)，新建Volume
+            - 数据段保存时间戳
+            - 新建Volume
             - 每个时间段自动生成保存数据的文件(.dat).和用于检索数据文件的索引文件(.idx)。
             - 数据加载模式:
                 - 内存加载(.idx)

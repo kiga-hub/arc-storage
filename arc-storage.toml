@@ -2,11 +2,11 @@
 apiBodyLimit = "10M"
 apiBurst = 10
 apiExpires = 10
-apiPort = 80
+apiPort = 8081
 apiRate = 5
 apiRoot = "/api/data/v1/history"
 apiTimeout = 2000
-inSwarm = true
+inSwarm = false
 isApiBody = false
 isApiRate = false
 isApiTimeout = false
@@ -35,7 +35,7 @@ enable = false
 groupID = "business"
 interval = 2
 messageMaxBytes = 67108864
-topic = "app.jinzhou.result"
+topic = "app.kafka.result"
 
 [taos]
 enable = true

@@ -72,22 +72,22 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func setMiddleWareSkipper(s *micro.Server) {
-	// 压缩中间件Skipper
+	// compression middleware
 	s.GzipSkipper = func(uri string) bool {
 		return strings.Contains(uri, "/arc")
 	}
 
-	// 自定义限流Skipper
+	// rate limiting
 	s.APIRateSkipper = func(uri string) bool {
 		return !strings.Contains(uri, "/history")
 	}
 
-	// 自定义POST Content大小Skipper
+	// post content size
 	s.APIBodySkipper = func(uri string) bool {
 		return !strings.Contains(uri, "/arc")
 	}
 
-	// 自定义超时Skipper
+	// timeout middleware
 	s.APITimeOutSkipper = func(uri string) bool {
 		return !strings.Contains(uri, "/history")
 	}

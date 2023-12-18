@@ -20,7 +20,7 @@ func CaseTestFolderWritable(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	file, err := ioutil.TempFile(dir, "tmp.wav")
+	file, err := ioutil.TempFile(dir, "tmp.arc")
 	if err != nil {
 		t.Fatalf("ioutil.TempFile %v", err)
 	}
@@ -93,12 +93,12 @@ func CaseGetFileList(t *testing.T) {
 				t.Fatalf("Mkdir err %v", err)
 			}
 
-			_, err = os.Create(dir + "/tmp/1.wav")
+			_, err = os.Create(dir + "/tmp/1.arc")
 			if err != nil {
 				t.Fatalf("os.Create err %v", err)
 			}
 
-			_, err = os.Create(dir + "/tmp/2.wav")
+			_, err = os.Create(dir + "/tmp/2.arc")
 			if err != nil {
 				t.Fatalf("os.Create err %v", err)
 			}
@@ -108,12 +108,12 @@ func CaseGetFileList(t *testing.T) {
 			So(key, ShouldEqual, "")
 		})
 		Convey("2", func() {
-			_, err := os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000000.wav")
+			_, err := os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000000.arc")
 			if err != nil {
 				t.Fatalf("os.Create err %v", err)
 			}
 
-			_, err = os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000001.wav")
+			_, err = os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000001.arc")
 			if err != nil {
 				t.Fatalf("os.Create err %v", err)
 			}
@@ -125,57 +125,10 @@ func CaseGetFileList(t *testing.T) {
 	})
 }
 
-func CaseGetFileListName(t *testing.T) {
-	// err := os.Mkdir("./tmp", 0777)
-	// if err != nil {
-	// 	t.Fatalf("Mkdir err %v", err)
-	// }
-	// dir := "./tmp"
-	// defer os.RemoveAll("./tmp")
-	// Convey("CaseGetFileListName", t, func() {
-	// 	Convey("1", func() {
-	// 		err = os.Mkdir("./tmp/tmp", 0777)
-	// 		if err != nil {
-	// 			t.Fatalf("Mkdir err %v", err)
-	// 		}
 
-	// 		_, err = os.Create(dir + "/tmp/20210322072559917_20210322072600012_32000_010000_01_000000.wav")
-	// 		if err != nil {
-	// 			t.Fatalf("os.Create err %v", err)
-	// 		}
-
-	// 		_, err = os.Create(dir + "/tmp/20210322072559917_20210322072600012_32000_010000_01_000001.wav")
-	// 		if err != nil {
-	// 			t.Fatalf("os.Create err %v", err)
-	// 		}
-	// 		key := ""
-	// 		files := make(map[string]string)
-	// 		err := GetFileListName(dir, files, key)
-	// 		So(err, ShouldBeNil)
-	// 		So(key, ShouldEqual, "")
-	// 	})
-	// 	Convey("2", func() {
-	// 		_, err := os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000000.wav")
-	// 		if err != nil {
-	// 			t.Fatalf("os.Create err %v", err)
-	// 		}
-
-	// 		_, err = os.Create(dir + "/20210322072559917_20210322072600012_32000_010000_01_000001.wav")
-	// 		if err != nil {
-	// 			t.Fatalf("os.Create err %v", err)
-	// 		}
-	// 		files := make(map[string]string)
-	// 		key := ""
-	// 		err = GetFileListName(dir, files, key)
-	// 		So(err, ShouldBeNil)
-	// 		So(key, ShouldEqual, "")
-	// 	})
-	// })
-}
 
 func TestFileUtil(t *testing.T) {
 	CaseTestFolderWritable(t)
 	CaseRemoveFolders(t)
 	CaseGetFileList(t)
-	CaseGetFileListName(t)
 }

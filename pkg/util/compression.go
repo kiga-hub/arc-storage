@@ -142,7 +142,7 @@ func IsGzippableFileType(ext, mtype string) (shouldBeZipped, iAmSure bool) {
 
 	// images
 	switch ext {
-	case ".svg", ".bmp", ".wav":
+	case ".svg", ".bmp", ".wav", ".arc":
 		return true, true
 	}
 	if strings.HasPrefix(mtype, "image/") {

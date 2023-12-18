@@ -114,8 +114,8 @@ func GetBigFileLists(path string, arcfiles map[string]string, key string) error 
 		return err
 	}
 	for _, file := range fs {
-		if strings.Contains(file.Name(), ".wav") {
-			start, _, _, _, _, err := GetTimeRangeFromFileName(file.Name())
+		if strings.Contains(file.Name(), ".arc") {
+			start, _, _,  err := GetTimeRangeFromFileName(file.Name())
 			if err != nil {
 				return err
 			}
@@ -162,7 +162,7 @@ func GetFileListName(path string, arcfiles map[string]string, key string) error 
 			}
 		} else {
 			if len(file.Name()) > 34 { //20211028080000000460
-				start, _, _, _, _, err := GetTimeRangeFromFileName(file.Name())
+				start, _, _,  err := GetTimeRangeFromFileName(file.Name())
 				if err != nil {
 					return err
 				}
@@ -180,7 +180,7 @@ func GetFileListNamebyCreateTime(path string, key string) (string, error) {
 	fs, _ := ioutil.ReadDir(path)
 	for _, file := range fs {
 		if !file.IsDir() {
-			start, _, _, _, _, err := GetTimeRangeFromFileName(file.Name())
+			start, _, _,  err := GetTimeRangeFromFileName(file.Name())
 			if err != nil {
 				return "", err
 			}
@@ -191,59 +191,6 @@ func GetFileListNamebyCreateTime(path string, key string) (string, error) {
 		}
 	}
 	return "", nil
-}
-
-// GetTimeRangeFromFileName -
-func GetTimeRangeFromFileName(filename string) (start, end time.Time, sensorid, status, samplerate string, err error) {
-	basename := path.Base(filename)
-	strSlice := strings.Split(basename, "_")
-	l := len(strSlice)
-	if l == 6 {
-		if len(strSlice[0]) == 20 && len(strSlice[1]) == 20 {
-			startstr := strSlice[0][:14] + "." + strSlice[0][14:]
-			startdate, err := time.Parse("20060102150405.999999", startstr)
-			if err != nil || startdate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			endstr := strSlice[1][:14] + "." + strSlice[1][14:]
-			enddate, err := time.Parse("20060102150405.999999", endstr)
-			if err != nil || enddate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			return startdate, enddate, "", "", strSlice[2], nil
-		}
-	}
-	if l == 9 {
-		if len(strSlice[2]) == 20 && len(strSlice[3]) == 20 {
-			startstr := strSlice[2][:14] + "." + strSlice[2][14:]
-			startdate, err := time.Parse("20060102150405.999999", startstr)
-			if err != nil || startdate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			endstr := strSlice[3][:14] + "." + strSlice[3][14:]
-			enddate, err := time.Parse("20060102150405.999999", endstr)
-			if err != nil || enddate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			return startdate, enddate, "", "", strSlice[4], nil
-		}
-	}
-	if l == 10 {
-		if len(strSlice[2]) == 20 && len(strSlice[3]) == 20 {
-			startstr := strSlice[2][:14] + "." + strSlice[2][14:]
-			startdate, err := time.Parse("20060102150405.999999", startstr)
-			if err != nil || startdate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			endstr := strSlice[3][:14] + "." + strSlice[3][14:]
-			enddate, err := time.Parse("20060102150405.999999", endstr)
-			if err != nil || enddate.Unix() < 0 {
-				return time.Now(), time.Now(), "", "", "", err
-			}
-			return startdate, enddate, strSlice[0], strSlice[4], strSlice[5], nil
-		}
-	}
-	return time.Now(), time.Now(), "", "", "", errors.New("get time range failed")
 }
 
 // GetLastCreateFile - get last create file name
@@ -266,4 +213,57 @@ func GetLastCreateFile(path string) string {
 	// fmt.Println(lastfilename)
 
 	return lastfilename
+}
+
+// GetTimeRangeFromFileName -
+func GetTimeRangeFromFileName(filename string) (start, end time.Time, sensorid string, err error) {
+	basename := path.Base(filename)
+	strSlice := strings.Split(basename, "_")
+	l := len(strSlice)
+	if l == 6 {
+		if len(strSlice[0]) == 20 && len(strSlice[1]) == 20 {
+			startstr := strSlice[0][:14] + "." + strSlice[0][14:]
+			startdate, err := time.Parse("20060102150405.999999", startstr)
+			if err != nil || startdate.Unix() < 0 {
+				return time.Now(), time.Now(), "",   err
+			}
+			endstr := strSlice[1][:14] + "." + strSlice[1][14:]
+			enddate, err := time.Parse("20060102150405.999999", endstr)
+			if err != nil || enddate.Unix() < 0 {
+				return time.Now(), time.Now(), "",   err
+			}
+			return startdate, enddate, "",  nil
+		}
+	}
+	if l == 9 {
+		if len(strSlice[2]) == 20 && len(strSlice[3]) == 20 {
+			startstr := strSlice[2][:14] + "." + strSlice[2][14:]
+			startdate, err := time.Parse("20060102150405.999999", startstr)
+			if err != nil || startdate.Unix() < 0 {
+				return time.Now(), time.Now(), "",  err
+			}
+			endstr := strSlice[3][:14] + "." + strSlice[3][14:]
+			enddate, err := time.Parse("20060102150405.999999", endstr)
+			if err != nil || enddate.Unix() < 0 {
+				return time.Now(), time.Now(), "",  err
+			}
+			return startdate, enddate, "",  nil
+		}
+	}
+	if l == 10 {
+		if len(strSlice[2]) == 20 && len(strSlice[3]) == 20 {
+			startstr := strSlice[2][:14] + "." + strSlice[2][14:]
+			startdate, err := time.Parse("20060102150405.999999", startstr)
+			if err != nil || startdate.Unix() < 0 {
+				return time.Now(), time.Now(), "",  err
+			}
+			endstr := strSlice[3][:14] + "." + strSlice[3][14:]
+			enddate, err := time.Parse("20060102150405.999999", endstr)
+			if err != nil || enddate.Unix() < 0 {
+				return time.Now(), time.Now(), "", err
+			}
+			return startdate, enddate, strSlice[0],   nil
+		}
+	}
+	return time.Now(), time.Now(), "",  errors.New("get time range failed")
 }

@@ -14,22 +14,6 @@ import (
 	"github.com/spf13/cast"
 )
 
-var (
-	// AllowFileMap 上传文件格式
-	AllowFileMap = map[string]bool{".arc": true}
-	// UploadFileType 上传文件数据类型
-	UploadFileType = map[string]string{"arc": "Arc"}
-)
-
-// NumericalTableDataRequest -
-type NumericalTableDataRequest struct {
-	SensorID string      `json:"sensorid"`
-	TS       int64       `json:"ts"`
-	SType    byte        `json:"stype"`
-	TType    byte        `json:"ttype"`
-	Data     interface{} `json:"data"`
-}
-
 // getSensorIDsfromStorage -
 func (arc *ArcStorage) getSensorIDsfromStorage() ([]string, error) {
 	var sensorids []string
@@ -101,7 +85,8 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 
 	from := c.QueryParam("from")
 	to := c.QueryParam("to")
-	if util.IsDigit(from) && util.IsDigit(to) { //如果传的是时间戳，则认为是utc时间
+	// if a timestamp is passed. it is cosidered as UTC time.
+	if util.IsDigit(from) && util.IsDigit(to) {
 		if len(from) == 10 && len(to) == 10 {
 			t1 = time.Unix(cast.ToInt64(from), 0)
 			t2 = time.Unix(cast.ToInt64(to), 0)
@@ -120,8 +105,8 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 				Msg:  http.StatusText(http.StatusBadRequest)},
 			)
 		}
-	} else { //不是时间戳就认为是字符串 没有自定义时区则默认东八区
-
+		// if it's not a timestamp. it's considered a string. if no custom timezone is defined. the default is UTC+8.
+	} else {
 		from = strings.ReplaceAll(from, " ", "T")
 		to = strings.ReplaceAll(to, " ", "T")
 
@@ -156,7 +141,7 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 		)
 	}
 
-	// 获取以天为单位的时间范围
+	// get the tiem range in days.
 	daysdiffer, count, err := util.GetDaysDiffer(t1.UTC().Format("2006-01-02 15:04:05"), t2.UTC().Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, utils.ResponseV2{
@@ -170,7 +155,7 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 		arc.logger.Infof("get data spend %s\n", time.Since(start).String())
 	}()
 
-	// 获取大文件列表
+	// get the file list
 	bigfilelists := make(map[string]string, count)
 
 	for _, day := range daysdiffer {
@@ -178,7 +163,7 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 		err := util.GetBigFileLists(path, bigfilelists, "")
 		if err != nil {
 			arc.logger.Errorw("GetBigFileLists", "dataPath", path, "err", err)
-			// 遍历文件夹，没有则跳过
+			// traverse the folder. skip if it doest not exist.
 			continue
 		}
 	}
@@ -193,7 +178,7 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 	sort.Strings(timestamplist)
 
 	for _, creattime := range timestamplist {
-		begin, end, _, _, _, err := util.GetTimeRangeFromFileName(bigfilelists[creattime])
+		begin, end, _,  err := util.GetTimeRangeFromFileName(bigfilelists[creattime])
 		if err != nil {
 			arc.logger.Errorw("GetTimeRangeFromFileName", "fileName", bigfilelists[creattime], "err", err)
 			return c.JSON(http.StatusNotFound, utils.ResponseV2{
@@ -201,12 +186,12 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 				Msg:  http.StatusText(http.StatusNotFound)},
 			)
 		}
-		// 开始时间大于文件保存结束时间，忽略
+		// ignore if the start time is greater than the file save end time.
 		if end.Before(t1) {
 			continue
 		}
 
-		// 结束时间小于文件创建时间，退出
+		// exit is the end time is less than the file creation time.
 		if t2.Before(begin) {
 			arc.logger.Debugw("compare timestamp", "t2", t2, "begin", begin)
 			continue
@@ -221,13 +206,13 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 		)
 	}
 
-	// 排序符合时间段
+	// sort according to the time period.
 	sort.Strings(starttimestamps)
 	searchlists := []SensorItem{}
 
 	for _, v := range starttimestamps {
 		fullpath := bigfilelists[v][strings.LastIndex(bigfilelists[v], "/")+1:]
-		start, end, _, _, sam, err := util.GetTimeRangeFromFileName(fullpath)
+		start, end, _, err := util.GetTimeRangeFromFileName(fullpath)
 		if err != nil {
 			arc.logger.Errorw("GetTimeRangeFromFileName", "path", fullpath, "err", err)
 			return c.JSON(http.StatusNotFound, utils.ResponseV2{
@@ -241,13 +226,9 @@ func (arc *ArcStorage) getSensorLists(c echo.Context) error {
 		item := SensorItem{
 			SensorID:     sensorid,
 			DataType:     filetype,
-			SampleRate:   sam,
-			Channel:      1,
-			TimeFrom:     start.UnixNano() / 1e3, // 返回微妙级别时间戳
+			TimeFrom:     start.UnixNano() / 1e3, // return timestamp at the microsecond level.
 			TimeTo:       end.UnixNano() / 1e3,
 			TimeDuration: duration,
-
-			DataSize: duration * int64(cast.ToInt(sam)*1*2) / 1e6,
 			Query: SensorQuery{
 				URL:      "http://arc-storage/api/data/v1/history/arc?sensorid=" + sensorid + "&type=" + filetype + "&from=" + cast.ToString(start.UnixNano()/1e3) + "&to=" + cast.ToString(end.UnixNano()/1e3),
 				Scheme:   "http",
