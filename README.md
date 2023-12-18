@@ -32,22 +32,16 @@
     ├─swagger               (本地swagger API文档依赖静态文件)
     ├─pkg                   (依赖包)
         ├─arc_grpc          (grpc数据转发)
-        ├─api               (数据相关结构体 TODO修改格式&命名)
         ├─cache             (实时数据缓存)
         ├─component         (组件注册)
-        ├─crontab           (数据迁移定时任务)
         ├─arc_volume        (缓存落盘数据)
         ├─protostream       (数据序列化)
         ├─storage           (haystack小文件存储)
-        ├─tdengine          (数据库存储)
         |─kafka             (kafka数据接收)
         ├─util              (工具包)
-        ├─api.go            (接口)
-        ├─decode.go         (数据解析)
-        ├─handels_test.go   (测试文件)
         ├─handles.go        (初始化,数据包处理)
         |─storage.go        (历史文件查询接口实现)
-        |─taos.go           (数据库查询值数据)
+
 ```
 
 ### 数据管理服务功能文档
@@ -84,7 +78,7 @@ search= true  查找时才开始缓存，false一直存储timeoutmin 失效
 移除`go-micro`依赖后的编译版本，执行程序调用`RESTful API`时会报以下错误
 
 ```bash
-WARN	echozap@v1.1.1/logger.go:48	Client error	{"name": "arc-storage", "uuid": "000000ff-0000-1234-0000-0000000000ff", "v": "", "error": "code=404, message=Not Found", "remote_ip": "192.168.9.45", "time": "173.622µs", "host": "192.168.8.245:8999 "request": "GET /api/data/v1/history/static/swagger/swagger-ui.css", "status": 404, "size": 24, "user_agent": "Mozilla/5.0 (Windows NT 10.0; Wi4; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67", "request_id": ""}
+WARN	echozap@v1.1.1/logger.go:48	Client error	{"name": "arc-storage", "uuid": "000000ff-0000-1234-0000-0000000000ff", "v": "", "error": "code=404, message=Not Found", "remote_ip": "192.168.9.4", "time": "173.622µs", "host": "192.168.1.2:8999 "request": "GET /api/data/v1/history/static/swagger/swagger-ui.css", "status": 404, "size": 24, "user_agent": "Mozilla/5.0 (Windows NT 10.0; Wi4; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67", "request_id": ""}
 ```
 
 解决方法:
@@ -100,69 +94,12 @@ docker pull arc-storage:12345678-linux-amd64
 docker save -o ./arc-storage.tar arc-storage:12345678-linux-amd64
 
 #内网拷贝
-#scp ./arc-storage.tar root@192.168.8.253:/ 
+#scp ./arc-storage.tar root@192.168.1.2:/ 
 
 #部署环境加载镜像
 docker load -i ./arc-storage.tar
 
 #镜像重新打tag并推送镜像到目标机registry
-docker tag arc-storage:12345678-linux-amd64 192.168.8.253/platform/arc-storage:12345678-linux-amd64
-docker push 192.168.8.253/platform/arc-storage:12345678-linux-amd64
+docker tag arc-storage:12345678-linux-amd64 192.168.1.2/platform/arc-storage:12345678-linux-amd64
+docker push 192.168.1.2/platform/arc-storage:12345678-linux-amd64
 ```
-
-##  数据处理
-
-- 使用`gRPC`接收数据并反序列化，由数据管理服务(arc-storage)进行下一步数据处理
-
-### 数据包协议
-
-```golang
-type Frame struct {
-	Head      [4]byte //4 头标志 0xFC 0xFC 0xFC 0xFC
-	Version   byte    //1 包格式版本 = 1
-	Size      uint32  //4 包大小 [Timestamp, End] = 32+n BigEndian
-	Timestamp int64   //8 时间戳/序号 精确到毫秒 BigEndian
-	BasicInfo [6]byte //6 (2-客户 1-设备 1-年份 1-月份 1-日期)
-	ID        [6]byte //6 设备编号 (Mac Address)
-	Firmware  [3]byte //3 固件版本3位
-	Hardware  byte    //1 硬件版本1位
-	Protocol  [2]byte //2 协议版本 = 1 BigEndian
-	Flag      [3]byte //3 标志位 前8位表示数据形式 AVT_____ 第9位表示 有线/无线 其他预留
-	DataGroup []byte  //n 数据
-	Crc uint16        //2 校验位 [Timestamp, Data], CRC-16 BigEndian
-	End [1]byte       //1 结束标志 0xFD
-}
-type DataGroup struct {
-	Count    byte     //1 数据类型个数
-	Sizes    []uint32 //4 每个类型数据大小
-	Segments []byte   //n 数据
-}
-```
-
-### 数据存储
-
-1. 存储数据类型
-   - 模拟数据Arc
-
-
-3. 存储格式
-    - 
-
-1. 写入Buffer
-   1. 包号连续
-   2. 当前Frame开始时间与结束时间在同一分钟时间段内
-
-2. Buffer数据写入文件，开始重新缓存新数据
-   1. 包号不连续
-      - isInterrupt flag
-   3. 当前Frame开始时间与结束时间不在同一分钟时间段内
-   4. 服务异常退出，退出前Buffer数据写入文件
-   5. 接收数据，Frame时间戳超时，Buffer数据写入文件
-
-4. 时间戳计算
-    1. 计算结束时间点
-        ```golang
-        duration := float64(Buffer.Len()) / float64(SampleRate) / (2 * float64(Channel))
-        ms, _ := time.ParseDuration("+" + cast.ToString(duration) + "s")
-        saveTime := createTime.UTC().Add(ms)
-        ```
