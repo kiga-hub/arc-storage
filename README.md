@@ -103,3 +103,10 @@ docker load -i ./arc-storage.tar
 docker tag arc-storage:12345678-linux-amd64 192.168.1.2/platform/arc-storage:12345678-linux-amd64
 docker push 192.168.1.2/platform/arc-storage:12345678-linux-amd64
 ```
+
+### 命令行执行
+
+```bash
+# ./build.sh arc-storage arc-storage
+./arc-storage run
+```

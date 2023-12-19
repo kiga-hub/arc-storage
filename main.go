@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/kiga-hub/arc-storage/cmd"
@@ -11,14 +12,14 @@ import (
 
 func main() {
 	Version()
-	// go DoMonitor(15, func(stat *MonitorStat) {
-	// 	fmt.Printf("==== stat %s === \nalloc:\t%d\ttotal:\t%d\tsys:\t%d\tmallocs: %d\tfrees:\t%d\npause:\t%d\tgc:\t%d\tgoroutine: %d\nheap: %d / %d / %d\tstack: %d\n",
-	// 		time.Now().String(),
-	// 		stat.Alloc, stat.TotalAlloc, stat.Sys, stat.Mallocs, stat.Frees,
-	// 		stat.PauseTotalNs, stat.NumGC, stat.NumGoroutine,
-	// 		stat.HeapIdle, stat.HeapInuse, stat.HeapReleased, stat.StackInuse,
-	// 	)
-	// })
+	go DoMonitor(15, func(stat *MonitorStat) {
+		fmt.Printf("==== stat %s === \nalloc:\t%d\ttotal:\t%d\tsys:\t%d\tmallocs: %d\tfrees:\t%d\npause:\t%d\tgc:\t%d\tgoroutine: %d\nheap: %d / %d / %d\tstack: %d\n",
+			time.Now().String(),
+			stat.Alloc, stat.TotalAlloc, stat.Sys, stat.Mallocs, stat.Frees,
+			stat.PauseTotalNs, stat.NumGC, stat.NumGoroutine,
+			stat.HeapIdle, stat.HeapInuse, stat.HeapReleased, stat.StackInuse,
+		)
+	})
 	spew.Config = *spew.NewDefaultConfig()
 	spew.Config.ContinueOnMethod = true
 	cmd.AppName = AppName
@@ -60,23 +61,23 @@ func Version() {
 }
 
 // MonitorStat is the state of the runtime
-// type MonitorStat struct {
-// 	runtime.MemStats
-// 	LiveObjects  uint64 `json:"live_objects,omitempty"`  // Live objects = Mallocs - Frees
-// 	NumGoroutine int    `json:"num_goroutine,omitempty"` // Number of goroutines
-// }
+type MonitorStat struct {
+	runtime.MemStats
+	LiveObjects  uint64 `json:"live_objects,omitempty"`  // Live objects = Mallocs - Frees
+	NumGoroutine int    `json:"num_goroutine,omitempty"` // Number of goroutines
+}
 
-// // DoMonitor start a loop for monitor
-// func DoMonitor(duration int, callback func(*MonitorStat)) {
-// 	interval := time.Duration(duration) * time.Second
-// 	timer := time.Tick(interval)
-// 	for range timer {
-// 		var rtm runtime.MemStats
-// 		runtime.ReadMemStats(&rtm)
-// 		callback(&MonitorStat{
-// 			MemStats:     rtm,
-// 			NumGoroutine: runtime.NumGoroutine(),
-// 			LiveObjects:  rtm.Mallocs - rtm.Frees,
-// 		})
-// 	}
-// }
+// DoMonitor start a loop for monitor
+func DoMonitor(duration int, callback func(*MonitorStat)) {
+	interval := time.Duration(duration) * time.Second
+	timer := time.Tick(interval)
+	for range timer {
+		var rtm runtime.MemStats
+		runtime.ReadMemStats(&rtm)
+		callback(&MonitorStat{
+			MemStats:     rtm,
+			NumGoroutine: runtime.NumGoroutine(),
+			LiveObjects:  rtm.Mallocs - rtm.Frees,
+		})
+	}
+}

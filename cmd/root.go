@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	// AppName forapp name
+	// AppName for app name
 	AppName string
 	// AppVersion for app
 	AppVersion string

@@ -1,6 +1,6 @@
 GROUP_NAME:=platform
 PROJECT_NAME:=arc-storage
-API_ROOT=/arc-storage/v1/history
+API_ROOT=/api/data/v1/history
 
 .PHONY: build image run swagger-client swagger-server
 
