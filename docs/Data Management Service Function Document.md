@@ -1,6 +1,6 @@
 ## 数据管理服务功能概述
 
-arc-storage数据管理服务通过receiver服务的数据中转，实现实时数据的落盘。
+arc-storage数据管理服务通过arc-consmuer服务的数据中转，实现实时数据的落盘。
 
 数据管理服务主要功能包括原始数据和解析数据的存储、部分数据的生命周期管理、数据定时备份、拷贝，历史数据的查询。
 
@@ -18,11 +18,11 @@ arc-storage数据管理服务通过receiver服务的数据中转，实现实时�
 1. 平台的所有服务使用docker容器化部署，各个服务通过指定路由进行内网的通讯
 2. 数据接收服务收到硬件发上来的数据后，进行解析和对数据包时间的处理。之后将数据传到Kafka、gRPC等待arc-storage进行消费。
 3. 通过路由解析后，arc-storage开始接收发过来的数据包，进行二次解析。
-4. arc-storage可将receiver发来的数据按数据类型保存为wav格式文件或导入到TDEngine时序数据库，也可对数据进行压缩后存储。
+4. arc-storage可将arc-consmuer发来的数据按数据类型保存为wav格式文件或导入到TDEngine时序数据库，也可对数据进行压缩后存储。
 6. 数据量大时，根据实际需要可部署多个arc-storage服务，缓解服务器压力。
 
 ### 数据管理功能流程
-- receiver使用gnet连接所有上线的设备，根据已定好的协议实现数据的采集，通过路由把解析好的数据实时发送至kafka消息队列或者连接gRPC服务将数据转发出去。
+- arc-consmuer使用gnet连接所有上线的设备，根据已定好的协议实现数据的采集，通过路由把解析好的数据实时发送至kafka消息队列或者连接gRPC服务将数据转发出去。
 - 中间件
   - 数据管理服务按顺序消费kafka队列中的数据
   - arc-storage监听连接请求，通过8080端口监听来自客户端的HTTP/2(gRPC)连接。
@@ -88,7 +88,7 @@ Kafka优缺点(gRPC待测试成熟后替换)
 
 Kafka服务启动配置
 ```golang
-# Topic 为 "Receiver"
+# Topic 为 "arc-consmuer"
 "bootstrap.servers":       arc.config.KafkaServer, //kafka集群消费地址
 "group.id":                "arc",
 "broker.address.family":   "v4",
